@@ -129,12 +129,11 @@ export interface ContaminationMonitoring {
 export interface ContaminationMonitoringCreate {
   date_time: string;
   area: number;
-  plates_exposed: number;
-  observation_datetime: string;
+  plates_exposed?: number | null;
+  observation_datetime?: string | null;
   colony_count: number;
   colony_type: string;
   action_taken?: string;
-  recorded_by: number;
 }
 
 export interface ContaminationReport {

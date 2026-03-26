@@ -88,6 +88,16 @@ export default {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        "gradient-x": {
+          "0%, 100%": {
+            backgroundSize: "200% 200%",
+            backgroundPosition: "left center"
+          },
+          "50%": {
+            backgroundSize: "200% 200%",
+            backgroundPosition: "right center"
+          },
+        },
       },
       dropShadow: {
         glass: '0 4px 30px rgba(0, 0, 0, 0.1)',
@@ -97,6 +107,7 @@ export default {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.3s ease-out",
+        "gradient-x": "gradient-x 15s ease infinite",
       },
     },
   },

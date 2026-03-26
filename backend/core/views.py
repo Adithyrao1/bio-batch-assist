@@ -291,6 +291,9 @@ class ContaminationMonitoringViewSet(viewsets.ModelViewSet):
     serializer_class = ContaminationMonitoringSerializer
     permission_classes = [IsAdminOrTechnician]
 
+    def perform_create(self, serializer):
+        serializer.save(recorded_by=self.request.user)
+
 
 class ContaminationReportViewSet(viewsets.ModelViewSet):
     queryset = ContaminationReport.objects.select_related('variety', 'operator').all()

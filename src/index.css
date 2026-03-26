@@ -32,7 +32,7 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221 83% 53%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -110,13 +110,16 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply text-foreground antialiased bg-gradient-to-br from-background via-muted/80 to-background;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-size: 400% 400%;
+    animation: gradient-x 15s ease infinite;
+    background-attachment: fixed;
   }
 }
 
 @layer utilities {
   .glass-card {
-    @apply bg-card/80 backdrop-blur-sm border border-border/50 shadow-sm;
+    @apply bg-card/60 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-xl transition-all duration-300;
   }
 }

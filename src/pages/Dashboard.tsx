@@ -41,7 +41,7 @@ const CustomizedContent = (props: any) => {
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-card text-card-foreground p-2 border border-border rounded-md shadow-sm">
+      <div className="glass-card text-card-foreground p-2 rounded-md shadow-sm">
         <p className="font-semibold">{`${payload[0].payload.name}`}</p>
         <p className="text-sm">{`Cases: ${payload[0].value}`}</p>
       </div>
@@ -182,7 +182,7 @@ export default function Dashboard() {
                 id="date"
                 variant={"outline"}
                 className={cn(
-                  "w-[300px] justify-start text-left font-normal bg-card",
+                  "w-[300px] justify-start text-left font-normal glass-card",
                   !date && "text-muted-foreground"
                 )}
               >
@@ -222,29 +222,29 @@ export default function Dashboard() {
           </div>
         ) : (
           <>
-            <StatCard 
-              title="Total Production" 
-              value={dashboardData?.stats.total_production ?? 0} 
-              icon={<FlaskConical className="h-5 w-5" />} 
-              description={`Last ${days} days`} 
+            <StatCard
+              title="Total Production"
+              value={dashboardData?.stats.total_production ?? 0}
+              icon={<FlaskConical className="h-5 w-5" />}
+              description={`Last ${days} days`}
             />
-            <StatCard 
-              title="Total Chemicals" 
-              value={dashboardData?.stats.total_chemicals ?? 0} 
-              icon={<Beaker className="h-5 w-5" />} 
-              description="In inventory" 
+            <StatCard
+              title="Total Chemicals"
+              value={dashboardData?.stats.total_chemicals ?? 0}
+              icon={<Beaker className="h-5 w-5" />}
+              description="In inventory"
             />
-            <StatCard 
-              title="Contamination Cases" 
-              value={dashboardData?.stats.total_contamination ?? 0} 
-              icon={<Bug className="h-5 w-5" />} 
-              description={`Last ${days} days`} 
+            <StatCard
+              title="Contamination Cases"
+              value={dashboardData?.stats.total_contamination ?? 0}
+              icon={<Bug className="h-5 w-5" />}
+              description={`Last ${days} days`}
             />
-            <StatCard 
-              title="Expired Chemicals" 
-              value={dashboardData?.stats.expired_chemicals ?? 0} 
-              icon={<Beaker className="h-5 w-5" />} 
-              description="Need attention" 
+            <StatCard
+              title="Expired Chemicals"
+              value={dashboardData?.stats.expired_chemicals ?? 0}
+              icon={<Beaker className="h-5 w-5" />}
+              description="Need attention"
             />
           </>
         )}
@@ -252,7 +252,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Bug className="h-4 w-4 text-destructive" /> Contamination Trend
@@ -273,7 +273,7 @@ export default function Dashboard() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-primary" /> Production Trend
@@ -296,7 +296,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium">Variety Distribution</CardTitle>
             </CardHeader>
@@ -316,7 +316,7 @@ export default function Dashboard() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="lg:col-span-2">
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Activity className="h-4 w-4" /> Recent Activity
@@ -353,7 +353,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <Card className="h-full">
+          <Card className="h-full glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Bug className="h-4 w-4 text-destructive" /> Contamination Heat Map
@@ -376,7 +376,7 @@ export default function Dashboard() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <Card className="h-full">
+          <Card className="h-full glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Sprout className="h-4 w-4 text-primary" /> Growth Stage Survival
@@ -397,7 +397,7 @@ export default function Dashboard() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-          <Card className="h-full">
+          <Card className="h-full glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-success" /> Yield & ROI Tracking
@@ -418,7 +418,7 @@ export default function Dashboard() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-          <Card className="h-full">
+          <Card className="h-full glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Beaker className="h-4 w-4 text-warning" /> Resource Burn Rate

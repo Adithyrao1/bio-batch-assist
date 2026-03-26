@@ -86,6 +86,7 @@ class ContaminationMonitoringSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContaminationMonitoring
         fields = '__all__'
+        read_only_fields = ['recorded_by', 'created_at']
 
 
 class ContaminationReportSerializer(serializers.ModelSerializer):

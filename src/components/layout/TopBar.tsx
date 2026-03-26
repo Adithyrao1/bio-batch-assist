@@ -10,7 +10,7 @@ export function TopBar() {
   const roleBadgeVariant = user?.role === "admin" ? "default" : user?.role === "technician" ? "secondary" : "outline";
 
   return (
-    <header className="h-14 border-b bg-card flex items-center justify-between px-4 shrink-0">
+    <header className="h-14 border-b border-border/50 bg-background/40 backdrop-blur-xl flex items-center justify-between px-4 shrink-0 sticky top-0 z-40">
       <div className="flex items-center gap-2">
         <SidebarTrigger />
       </div>
