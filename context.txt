@@ -1,0 +1,252 @@
+## Comprehensive Application Summary
+
+### **1. APPLICATION OVERVIEW**
+
+**Bio-Batch-Assist** is a **DCM SHRIRAM Tissue Culture Data Management System** for managing Sugarcane tissue culture lab operations. It's a web-based application for tracking production batches, contamination monitoring, chemical inventory, and greenhouse operations across multiple specialized lab areas.
+
+---
+
+### **2. ALL ENTITIES & DATA MODELS**
+
+#### **Primary Entities:**
+
+1. **Contamination Monitoring**
+   - Tracks contamination detection across areas
+   - Fields: ID, dateTime, area, platesExposed, observationDateTime, colonyCount, colonyType, actionTaken
+   - Colony types: Fungal, Bacterial, Yeast, None
+
+2. **Media Preparation**
+   - Manages prepared culture media batches
+   - Fields: ID, batchNumber, prepDate, quantity, bottlesPrepared, preparedBy, contaminationNotes, bottlesIssued, issuedDate, mediaType
+   - Media types: MS Medium, B5 Medium, White's Medium, N6 Medium
+
+3. **Growth Room**
+   - Daily tracking of culture growth and inventory management
+   - Fields: ID, varietyCode, ltdDate (logged transaction date), planning, openingBottles, openingCultures, issuedBottles, issuedCultures, receivedBottles, receivedCultures, contaminatedBottles, contaminatedCultures, closingBottles, closingCultures
+   - Represents material flow in/out/contamination within growth rooms
+
+4. **Inoculation Room**
+   - Records inoculation operations and production data
+   - Fields: ID, variety, date, operator, cultures, bottles, totalProduced, remarks
+   - Tracks yields and quality notes per operation
+
+5. **Chemicals**
+   - Chemical inventory management with shelf-life tracking
+   - Fields: ID, name, quantity, unit, mfgDate, expiryDate, receivedDate, remainingStock
+   - Automatic expiry detection (red flag if past expiryDate)
+
+6. **Contamination Reports**
+   - Aggregated contamination incident records
+   - Fields: ID, varietyCode, source (Fungus/Bacteria), typeDesc, bottlesAffected, operator, date
+   - Links inoculation/growth failures to specific incidents
+
+7. **Greenhouse**
+   - Greenhouse operations and plant observations
+   - Fields: ID, variety, batchNumber, transplantDate, operationDate, operationDesc, observationDate, findings (array), plantletsDied, recordedBy
+   - Findings: Healthy, New Roots, Wilting, Yellowing, Pest Damage, Stunted Growth
+   - Tracks mortality and health status
+
+8. **Users**
+   - User account management
+   - Fields: ID, name, username, role, status (active/inactive)
+   - Seed data: Vineeta Raina (admin), Kajal (technician), Satyam (technician), Anurag (viewer)
+
+9. **Master Data (Reference)**
+   - Areas: 6 lab/greenhouse locations
+   - Varieties: 5 sugarcane varieties (SC-001 through SC-005)
+   - Media Types: 4 standard media formulations
+   - Findings: 6 observation categories for greenhouse
+
+10. **Dashboard Metrics (Derived)**
+    - Contamination heatmap by area
+    - Contamination trend (monthly)
+    - Production trend (batches by month)
+    - Variety distribution (pie)
+    - Growth stage distribution
+    - Yield success rates by variety
+    - Chemical burn rate tracking
+
+---
+
+### **3. ENTITY RELATIONSHIPS**
+
+```
+Variety (SC-001, SC-002, etc.)
+├─ relates to → Contamination Reports
+├─ relates to → Growth Room (daily tracking)
+├─ relates to → Inoculation Room (production)
+└─ relates to → Greenhouse (hardening/observation)
+
+Media Preparation (batch)
+└─ consumed by → Growth Room & Inoculation Room operations
+
+Chemical (inventory)
+└─ used in → Media Preparation & Growth operations
+
+Contamination Monitoring (detection event)
+├─ may result in → Contamination Report
+└─ triggers → Action Taken (UV sterilization, deep cleaning)
+
+Operator/User
+├─ prepares → Media Preparation batches
+├─ operates → Inoculation Room production
+├─ records → Growth Room daily transactions
+├─ detects → Contamination incidents
+└─ observes → Greenhouse findings
+
+Area (physical location)
+├─ has → Contamination Monitoring events
+└─ manages → Inoculation Rooms A/B, Growth Rooms 1/2, Media Prep Lab, Greenhouse
+```
+
+---
+
+### **4. USER ROLES & PERMISSIONS**
+
+| Role | Login Credentials | Permissions | Access |
+|------|------------------|-------------|--------|
+| **Admin** | admin / admin123 | View all, Create, Edit, Delete | All pages + Master Data + Users pages |
+| **Technician** | tech / tech123 | View all, Create, Edit (NO delete) | All operational pages (no admin pages) |
+| **Technician** | tech2 / tech123 | View all, Create, Edit (NO delete) | All operational pages |
+| **Viewer** | viewer / viewer123 | View only (NO create, edit, delete) | All operational pages (no admin pages) |
+
+**Permission Matrix in Code:**
+```typescript
+admin → all actions allowed
+technician → view, create, edit (NOT delete)
+viewer → view ONLY
+```
+
+**Admin-Only Routes:**
+- `/master-data` - Manage reference data
+- `/users` - User management interface
+
+---
+
+### **5. MAIN WORKFLOWS & FEATURES**
+
+#### **Workflow 1: Media Production & Distribution**
+1. Technician prepares media batch (Media Preparation)
+   - Records: batch #, prep date, quantity, bottles prepared, media type, contamination notes
+2. Media issued to Growth Room
+   - Tracked: bottlesIssued, issuedDate
+3. Growth Room consumes media in daily operations
+   - Logged: daily transaction with opening/closing inventory
+
+#### **Workflow 2: Inoculation & Culture Production**
+1. Operator performs inoculation in Inoculation Room
+   - Records: date, varieties inoculated, cultures produced, bottles output, remarks
+2. Produces: plantlets/cultures for downstream growth
+
+#### **Workflow 3: Contamination Detection & Response**
+1. Contamination Monitoring detects incident
+   - Records: date/time, area, plates exposed, colony count, type
+2. May trigger Contamination Report
+   - Records: variety affected, contamination source, bottles affected
+3. Action taken: UV sterilization, deep cleaning, fumigation
+4. Dashboard displays heatmap of contamination by area
+
+#### **Workflow 4: Growth & Scaling**
+1. Growth Room receives cultures from Inoculation
+   - Daily log: opening inventory, issued out, received, contaminated, closing inventory
+2. Subculture cycles tracked by variety
+3. Growth stage progression: Inoculation → Growth Room → Greenhouse → Hardening
+
+#### **Workflow 5: Greenhouse Hardening & Observation**
+1. Plantlets transplanted from growth room
+   - Records: transplant date, batch number
+2. Operations applied: hardening, misting adjustment
+3. Observations recorded: health status, findings, mortality count
+4. Success tracking for yield analysis
+
+#### **Workflow 6: Chemical Inventory & Stock Control**
+1. Chemicals received and logged
+   - Tracks: mfg date, expiry date, remaining stock
+2. System flags expired chemicals (red alert)
+3. Dashboard shows burn rate (consumption per week)
+
+#### **Workflow 7: User & System Administration** (Admin only)
+1. Manage master data: Areas, Varieties, Media Types, Findings
+2. Manage users: Create, edit, deactivate
+3. All data modifications require admin role
+
+---
+
+### **6. UI/UX PATTERNS**
+
+**Standard Data Module Pattern:**
+- Search bar with real-time filtering
+- CSV export functionality
+- Action buttons (View, Edit, Delete) - permissions-based
+- Add New button (if user has create permission)
+- Table display with sorting capability
+- Empty state handling
+
+**Data Entry Points:**
+- Form stubs currently trigger toast notifications
+- Planned integration points for backend API
+- Forms use React Hook Form + validation
+- Custom form components (Input, Select, Textarea, etc.)
+
+**Dashboard:**
+- Date range picker (default: last 30 days)
+- Stat cards with key metrics
+- Multiple chart types: Bar, Pie, Line, Treemap
+- Recent activity log
+- Contamination heatmap
+
+---
+
+### **7. CURRENT STATE & LIMITATIONS**
+
+**Implemented:**
+✅ Authentication & role-based access control
+✅ All 11 pages with mock data display
+✅ Dashboard with analytics & charts
+✅ Search & filter across all modules
+✅ CSV export functionality
+✅ Permission-based UI rendering
+✅ Responsive design with animations
+
+**Not Yet Implemented:**
+❌ Backend API integration
+❌ Form submission (add, edit, delete operations)
+❌ Data persistence
+❌ Real user management system
+❌ Audit logging
+❌ Report generation
+
+---
+
+### **8. TECHNOLOGY STACK**
+
+- **Frontend:** React 18 + TypeScript
+- **Routing:** React Router v6
+- **State Management:** Context API (Auth), React Query
+- **UI Components:** shadcn/ui (Radix UI primitives)
+- **Styling:** Tailwind CSS
+- **Charts:** Recharts
+- **Forms:** React Hook Form
+- **Build:** Vite
+- **Testing:** Vitest
+
+---
+
+### **9. KEY DATA INSERTION POINTS FOR FEATURE DEVELOPMENT**
+
+To add functionality, focus on these mock data arrays in [src/data/mockData.ts](src/data/mockData.ts):
+- `mockContaminationMonitoring`
+- `mockMediaPreparation`
+- `mockGrowthRoom`
+- `mockInoculationRoom`
+- `mockChemicals`
+- `mockContaminationReports`
+- `mockGreenhouse`
+- `mockUsers`
+- Reference arrays: `mockAreas`, `mockVarieties`, `mockMediaTypes`, `mockFindings`
+
+All pages follow the same pattern: import mock data → define columns → render with ModulePage component.
+
+---
+
+This is a comprehensive tissue culture lab management system with clear data models, established workflows, and role-based access control ready for backend integration.

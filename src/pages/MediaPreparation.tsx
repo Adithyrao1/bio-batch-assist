@@ -1,30 +1,42 @@
 import { ModulePage, Column } from "@/components/ModulePage";
-import { mockMediaPreparation } from "@/data/mockData";
+import { useMediaPreparation, useDeleteMediaPreparation } from "@/hooks/useApiQueries";
 import { useToast } from "@/hooks/use-toast";
+import type { MediaPreparation } from "@/types/api";
 
-type Record = (typeof mockMediaPreparation)[0];
-
-const columns: Column<Record>[] = [
-  { key: "batchNumber", header: "Batch #" },
-  { key: "prepDate", header: "Prep Date" },
-  { key: "mediaType", header: "Media Type" },
+const columns: Column<MediaPreparation>[] = [
+  { key: "batch_number", header: "Batch #" },
+  { key: "prep_date", header: "Prep Date" },
+  { key: "media_type_name", header: "Media Type" },
   { key: "quantity", header: "Quantity" },
-  { key: "bottlesPrepared", header: "Bottles" },
-  { key: "preparedBy", header: "Prepared By" },
-  { key: "bottlesIssued", header: "Issued" },
+  { key: "bottles_prepared", header: "Bottles" },
+  { key: "prepared_by_name", header: "Prepared By" },
+  { key: "bottles_issued", header: "Issued" },
 ];
 
 export default function MediaPreparation() {
   const { toast } = useToast();
+  const { data, isLoading } = useMediaPreparation();
+  const deleteRecord = useDeleteMediaPreparation();
+
+  const handleDelete = (item: MediaPreparation) => {
+    if (confirm("Are you sure you want to delete this record?")) {
+      deleteRecord.mutate(item.id, {
+        onSuccess: () => toast({ title: "Deleted", description: "Record deleted successfully." }),
+        onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+      });
+    }
+  };
+
   return (
     <ModulePage
       title="Media Preparation"
-      data={mockMediaPreparation}
+      data={data?.results ?? []}
       columns={columns}
-      onAddNew={() => toast({ title: "Add New", description: "Form will be available with backend integration." })}
-      onView={() => toast({ title: "View Record" })}
-      onEdit={() => toast({ title: "Edit Record" })}
-      onDelete={() => toast({ title: "Delete Record", variant: "destructive" })}
+      isLoading={isLoading}
+      onAddNew={() => toast({ title: "Add New", description: "Form dialog coming soon." })}
+      onView={(item) => toast({ title: "View", description: `Batch: ${item.batch_number}` })}
+      onEdit={(item) => toast({ title: "Edit", description: `Editing batch ${item.batch_number}` })}
+      onDelete={handleDelete}
     />
   );
 }

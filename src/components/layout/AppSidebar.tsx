@@ -58,7 +58,7 @@ export function AppSidebar() {
             </div>
             {!collapsed && (
               <div>
-                <h2 className="text-sm font-bold text-foreground leading-none">LabCulture</h2>
+                <h2 className="text-sm font-bold text-foreground leading-none">DCM SHRIRAM LAB DATA MANAGEMENT SYSTEM</h2>
                 <p className="text-[10px] text-muted-foreground">Tissue Culture LIMS</p>
               </div>
             )}

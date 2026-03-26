@@ -1,51 +1,80 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { authApi, LoginResponse } from "@/lib/api";
 
 export type UserRole = "admin" | "technician" | "viewer";
 
 export interface User {
-  id: string;
+  id: number;
   name: string;
   username: string;
+  email: string;
   role: UserRole;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (username: string, password: string) => boolean;
-  logout: () => void;
+  isLoading: boolean;
+  login: (username: string, password: string) => Promise<boolean>;
+  signup: (data: { username: string; password: string; password_confirm: string; first_name: string; last_name: string; email: string }) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
   hasPermission: (action: "view" | "create" | "edit" | "delete") => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const mockUsers: Record<string, { password: string; user: User }> = {
-  admin: {
-    password: "admin123",
-    user: { id: "1", name: "Dr. Sarah Chen", username: "admin", role: "admin" },
-  },
-  tech: {
-    password: "tech123",
-    user: { id: "2", name: "James Rivera", username: "tech", role: "technician" },
-  },
-  viewer: {
-    password: "viewer123",
-    user: { id: "3", name: "Maria Santos", username: "viewer", role: "viewer" },
-  },
-};
+function transformUser(apiUser: LoginResponse['user']): User {
+  return {
+    id: apiUser.id,
+    name: `${apiUser.first_name} ${apiUser.last_name}`.trim() || apiUser.username,
+    username: apiUser.username,
+    email: apiUser.email,
+    role: apiUser.role,
+  };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = (username: string, password: string): boolean => {
-    const entry = mockUsers[username];
-    if (entry && entry.password === password) {
-      setUser(entry.user);
-      return true;
+  // Check for existing session on mount
+  useEffect(() => {
+    const storedUser = authApi.getStoredUser();
+    if (storedUser && authApi.isAuthenticated()) {
+      setUser(transformUser(storedUser));
     }
-    return false;
+    setIsLoading(false);
+  }, []);
+
+  const login = async (username: string, password: string): Promise<boolean> => {
+    try {
+      const response = await authApi.login(username, password);
+      const transformedUser = transformUser(response.user);
+      authApi.setStoredUser(response.user);
+      setUser(transformedUser);
+      return true;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
+    }
   };
 
-  const logout = () => setUser(null);
+  const signup = async (data: { username: string; password: string; password_confirm: string; first_name: string; last_name: string; email: string }): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await authApi.signup(data);
+      const transformedUser = transformUser(response.user);
+      authApi.setStoredUser(response.user);
+      setUser(transformedUser);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Signup failed' };
+    }
+  };
+
+  const logout = async () => {
+    await authApi.logout();
+    authApi.clearStoredUser();
+    setUser(null);
+  };
 
   const hasPermission = (action: "view" | "create" | "edit" | "delete"): boolean => {
     if (!user) return false;
@@ -55,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, hasPermission }}>
+    <AuthContext.Provider value={{ user, isLoading, login, signup, logout, hasPermission }}>
       {children}
     </AuthContext.Provider>
   );

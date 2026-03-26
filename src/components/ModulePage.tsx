@@ -1,5 +1,5 @@
 import { ReactNode, useState } from "react";
-import { Plus, Search, Download } from "lucide-react";
+import { Plus, Search, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,6 +24,7 @@ interface ModulePageProps<T> {
   title: string;
   data: T[];
   columns: Column<T>[];
+  isLoading?: boolean;
   onAddNew?: () => void;
   onView?: (item: T) => void;
   onEdit?: (item: T) => void;
@@ -31,10 +32,11 @@ interface ModulePageProps<T> {
   renderForm?: (onClose: () => void) => ReactNode;
 }
 
-export function ModulePage<T extends { id: string }>({
+export function ModulePage<T extends { id: string | number }>({
   title,
   data,
   columns,
+  isLoading = false,
   onAddNew,
   onView,
   onEdit,
@@ -98,7 +100,11 @@ export function ModulePage<T extends { id: string }>({
       </div>
 
       <div className="rounded-lg border bg-card overflow-hidden">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : filtered.length === 0 ? (
           <EmptyState />
         ) : (
           <Table>

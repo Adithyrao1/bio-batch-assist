@@ -37,10 +37,10 @@ export const mockGreenhouse = [
 ];
 
 export const mockUsers = [
-  { id: "1", name: "Dr. Sarah Chen", username: "admin", role: "admin", status: "active" },
-  { id: "2", name: "James Rivera", username: "tech", role: "technician", status: "active" },
-  { id: "3", name: "Maria Santos", username: "viewer", role: "viewer", status: "active" },
-  { id: "4", name: "Ana Lopez", username: "tech2", role: "technician", status: "inactive" },
+  { id: "1", name: "Vineeta Raina", username: "admin", role: "admin", status: "active" },
+  { id: "2", name: "Kajal", username: "tech", role: "technician", status: "active" },
+  { id: "3", name: "Satyam", username: "tech2", role: "technician", status: "active" },
+  { id: "4", name: "Anurag", username: "viewer", role: "viewer", status: "inactive" },
 ];
 
 export const mockAreas = ["Inoculation Room A", "Inoculation Room B", "Growth Room 1", "Growth Room 2", "Media Prep Lab", "Greenhouse"];

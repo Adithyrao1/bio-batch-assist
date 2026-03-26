@@ -17,7 +17,7 @@ export function TopBar() {
       <div className="flex items-center gap-3">
         {user && (
           <>
-            <span className="text-sm text-muted-foreground hidden sm:inline">{user.name}</span>
+            <span className="text-sm text-muted-foreground hidden sm:inline">{user.name == "Dr. Sarah Chen" ? "Vineeta Raina" : user.name}</span>
             <Badge variant={roleBadgeVariant} className="capitalize text-xs">
               {user.role}
             </Badge>
