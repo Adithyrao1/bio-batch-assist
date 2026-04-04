@@ -34,4 +34,8 @@ urlpatterns = [
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/profile/', views.ProfileView.as_view(), name='profile'),
     path('auth/change-password/', views.ChangePasswordView.as_view(), name='change_password'),
+    path('auth/request-otp/', views.RequestOTPView.as_view(), name='request_otp'),
+    path('auth/verify-otp/', views.VerifyOTPView.as_view(), name='verify_otp'),
+    path('auth/settings/request-otp/', views.AuthSettingsOTPRequestView.as_view(), name='settings_request_otp'),
+    path('auth/settings/verify-otp/', views.AuthSettingsOTPVerifyView.as_view(), name='settings_verify_otp'),
 ]

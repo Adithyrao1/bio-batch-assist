@@ -77,6 +77,7 @@ class MediaPreparationSerializer(serializers.ModelSerializer):
     class Meta:
         model = MediaPreparation
         fields = '__all__'
+        read_only_fields = ['prepared_by', 'created_at']
 
 
 class ContaminationMonitoringSerializer(serializers.ModelSerializer):
@@ -169,5 +170,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'first_name', 'last_name', 'full_name', 'email', 'role', 'status']
         read_only_fields = ['id', 'username', 'role', 'status']
     
-    def get_full_name(self, obj):
-        return obj.get_full_name() or obj.username
+class RequestOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+class VerifyOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(min_length=6, max_length=6)

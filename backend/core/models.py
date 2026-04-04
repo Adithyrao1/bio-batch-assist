@@ -17,8 +17,12 @@ class User(AbstractUser):
         ('inactive', 'Inactive'),
     ]
     
+    email = models.EmailField(unique=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
     
     def __str__(self):
         return f"{self.get_full_name() or self.username} ({self.role})"
@@ -215,5 +219,19 @@ class Greenhouse(models.Model):
     def __str__(self):
         return f"{self.variety.code} - Batch {self.batch_number}"
     
+class UserOTP(models.Model):
+    email = models.EmailField()
+    otp = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return f"{self.email} - {self.otp} ({'Used' if self.is_used else 'Active'})"
+    
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
     class Meta:
-        ordering = ['-operation_date']
+        ordering = ['-created_at']

@@ -11,9 +11,14 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env file
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 
 # Quick-start development settings - unsuitable for production
@@ -184,3 +189,22 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:5173',
     'http://localhost:8080',
 ]
+
+# Email settings
+_email_user = os.environ.get('EMAIL_HOST_USER', '')
+_email_pass = os.environ.get('EMAIL_HOST_PASSWORD', '')
+_has_credentials = bool(_email_user and _email_user != 'YOUR_OUTLOOK_EMAIL@outlook.com' and _email_user != 'YOUR_GMAIL@gmail.com')
+
+if _has_credentials:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = 'smtp.gmail.com'
+    EMAIL_PORT = 587
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER = _email_user
+    EMAIL_HOST_PASSWORD = _email_pass
+    DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+else:
+    # Dev fallback: OTP prints to the Django server terminal
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    EMAIL_HOST_USER = 'dev@localhost'
+    DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
