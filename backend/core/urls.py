@@ -23,6 +23,8 @@ router.register(r'inoculation-room', views.InoculationRoomViewSet)
 router.register(r'growth-room', views.GrowthRoomViewSet)
 router.register(r'greenhouse', views.GreenhouseViewSet)
 router.register(r'recent-activity', views.RecentActivityViewSet)
+router.register(r'media-chemical-requirements', views.MediaChemicalRequirementViewSet, basename='media-chemical-requirements')
+router.register(r'chemical-usage-logs', views.ChemicalUsageLogViewSet, basename='chemical-usage-logs')
 
 urlpatterns = [
     path('', include(router.urls)),

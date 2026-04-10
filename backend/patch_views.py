@@ -1,4 +1,4 @@
-"""Patch views.py: split VerifyOTPView, add CompleteSignupView + ForgotPassword views."""
+﻿"""Patch views.py: split VerifyOTPView, add CompleteSignupView + ForgotPassword views."""
 import sys
 
 VIEWS_PATH = 'core/views.py'
@@ -110,7 +110,7 @@ class CompleteSignupView(APIView):
 
         full_name = f"{first_name} {last_name}".strip() or username
 
-        user_subject = 'Welcome to Bio-Batch-Assist: Your Login Credentials'
+        user_subject = 'Welcome to DCM LabNest: Your Login Credentials'
         user_text = (
             f'Welcome {full_name},\\n\\n'
             f'Your account has been created.\\n'
@@ -121,7 +121,7 @@ class CompleteSignupView(APIView):
         user_html = f"""
         <div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;max-width:600px;margin:0 auto;padding:20px;background-color:#f5f4ff;border-radius:16px;">
             <div style="text-align:center;margin-bottom:30px;">
-                <h1 style="color:#1a1035;margin-bottom:5px;">Bio-Batch Assist</h1>
+                <h1 style="color:#1a1035;margin-bottom:5px;">DCM LabNest</h1>
                 <p style="color:#6b7280;margin-top:0;font-size:14px;">Account Created Successfully</p>
             </div>
             <div style="background-color:#ffffff;padding:30px;border-radius:12px;box-shadow:0 4px 6px rgba(124,58,237,0.05);border:1px solid rgba(124,58,237,0.1);">
@@ -206,7 +206,7 @@ class ForgotPasswordRequestView(APIView):
         UserOTP.objects.filter(email=email, is_used=False).update(is_used=True)
         UserOTP.objects.create(email=email, otp=otp_code, expires_at=expires_at)
 
-        subject = 'Bio-Batch Assist: Password Reset Code'
+        subject = 'DCM LabNest: Password Reset Code'
         text_content = (
             f'Hello {user.first_name or user.username}, '
             f'your password reset code is: {otp_code}. '
@@ -215,7 +215,7 @@ class ForgotPasswordRequestView(APIView):
         html_content = f"""
         <div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;max-width:600px;margin:0 auto;padding:20px;background-color:#f5f4ff;border-radius:16px;">
             <div style="text-align:center;margin-bottom:30px;">
-                <h1 style="color:#1a1035;margin-bottom:5px;">Bio-Batch Assist</h1>
+                <h1 style="color:#1a1035;margin-bottom:5px;">DCM LabNest</h1>
                 <p style="color:#6b7280;margin-top:0;font-size:14px;">Password Reset Request</p>
             </div>
             <div style="background-color:#ffffff;padding:30px;border-radius:12px;box-shadow:0 4px 6px rgba(124,58,237,0.05);border:1px solid rgba(124,58,237,0.1);">

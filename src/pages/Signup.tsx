@@ -142,7 +142,7 @@ export default function Signup() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-violet-600 shadow-lg mb-3">
             <Sprout className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Bio-Batch Assist</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">DCM LabNest</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Create your account</p>
         </div>
 

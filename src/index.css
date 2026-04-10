@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 250 30% 99%;
     --foreground: 240 10% 8%;
 
     --card: 0 0% 100%;
@@ -58,10 +58,10 @@
   }
 
   .dark {
-    --background: 250 30% 5%;
+    --background: 250 35% 4%;
     --foreground: 240 10% 96%;
 
-    --card: 250 25% 8%;
+    --card: 250 28% 7%;
     --card-foreground: 240 10% 96%;
 
     --popover: 250 25% 7%;
@@ -112,7 +112,19 @@
   body {
     @apply text-foreground antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background-color: hsl(var(--background));
+    /* light: faint lavender mesh */
+    background:
+      radial-gradient(ellipse at 80% 0%,   hsl(270 50% 97%) 0%, transparent 55%),
+      radial-gradient(ellipse at 0%  100%, hsl(190 50% 96%) 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 50%, hsl(260 30% 99%) 0%, hsl(240 20% 98%) 100%);
+  }
+
+  .dark body {
+    /* dark: deep indigo-black with subtle hue shifts */
+    background:
+      radial-gradient(ellipse at 80% 0%,   hsl(270 45% 7%)  0%, transparent 55%),
+      radial-gradient(ellipse at 0%  100%, hsl(190 40% 5%)  0%, transparent 55%),
+      radial-gradient(ellipse at 50% 50%, hsl(260 35% 4%)  0%, hsl(250 28% 3%) 100%);
   }
 }
 

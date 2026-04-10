@@ -3,7 +3,7 @@ from .models import (
     User, Area, Variety, MediaType, FindingType,
     Chemical, MediaPreparation, ContaminationMonitoring,
     ContaminationReport, InoculationRoom, GrowthRoom, Greenhouse,
-    RecentActivity
+    RecentActivity, MediaChemicalRequirement, ChemicalUsageLog
 )
 
 
@@ -185,3 +185,28 @@ class RecentActivitySerializer(serializers.ModelSerializer):
         model = RecentActivity
         fields = ['id', 'user', 'user_name', 'content', 'timestamp']
         read_only_fields = ['user', 'timestamp']
+
+
+# ============================================
+# CHEMICAL ↔ MEDIA PREPARATION SERIALIZERS
+# ============================================
+class MediaChemicalRequirementSerializer(serializers.ModelSerializer):
+    media_type_name = serializers.CharField(source='media_type.name', read_only=True)
+    chemical_name = serializers.CharField(source='chemical.name', read_only=True)
+    chemical_unit = serializers.CharField(source='chemical.unit', read_only=True)
+
+    class Meta:
+        model = MediaChemicalRequirement
+        fields = ['id', 'media_type', 'media_type_name', 'chemical', 'chemical_name', 'chemical_unit', 'quantity_required']
+        read_only_fields = ['id']
+
+
+class ChemicalUsageLogSerializer(serializers.ModelSerializer):
+    chemical_name = serializers.CharField(source='chemical.name', read_only=True)
+    chemical_unit = serializers.CharField(source='chemical.unit', read_only=True)
+    batch_number = serializers.CharField(source='media_preparation.batch_number', read_only=True)
+
+    class Meta:
+        model = ChemicalUsageLog
+        fields = ['id', 'chemical', 'chemical_name', 'chemical_unit', 'media_preparation', 'batch_number', 'quantity_consumed', 'timestamp']
+        read_only_fields = ['id', 'timestamp']

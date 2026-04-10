@@ -3,7 +3,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { authApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Lock, Mail, ShieldCheck, Clock, CheckCircle2, ArrowRight } from "lucide-react";
+import {
+  Lock, Mail, ShieldCheck, CheckCircle2, ArrowRight,
+  User, KeyRound, BadgeCheck, Settings2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,8 +18,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 
 export default function Settings() {
   const { user } = useAuth();
-  
-  // States for password reset flow
+
   const [isRequestingOTP, setIsRequestingOTP] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
@@ -42,7 +44,6 @@ export default function Settings() {
   const handleVerifyOTP = async () => {
     if (otp.length !== 6) return toast.error("Please enter a valid 6-digit code");
     if (newPassword.length < 6) return toast.error("Password must be at least 6 characters");
-    
     try {
       setIsVerifying(true);
       await authApi.verifySettingsOTP(otp, newPassword);
@@ -56,192 +57,257 @@ export default function Settings() {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-violet-500 to-indigo-500 bg-clip-text text-transparent">
-          Account Settings
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Manage your account profile and security preferences.
-        </p>
-      </div>
+    <div className="p-6 space-y-6 max-w-5xl mx-auto">
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* PROFILE OVERVIEW CARD */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="bg-card/30 backdrop-blur-md rounded-2xl border border-white/10 dark:border-white/5 shadow-xl p-8 relative overflow-hidden group"
-        >
-          <div className="absolute top-0 right-0 p-8 opacity-5 transition-opacity group-hover:opacity-10 pointer-events-none">
-            <ShieldCheck className="w-48 h-48" />
+      {/* ── Hero ── */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-700 via-slate-600 to-zinc-700 px-8 py-6 shadow-xl"
+      >
+        <div className="absolute -top-10 -right-10 h-44 w-44 rounded-full bg-white/10 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-8 -left-8 h-36 w-36 rounded-full bg-slate-400/20 blur-2xl pointer-events-none" />
+        <div className="absolute right-10 top-1/2 -translate-y-1/2 opacity-[0.10] hidden lg:block pointer-events-none">
+          <Settings2 className="h-28 w-28 text-white" />
+        </div>
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="h-6 w-6 rounded-md bg-white/20 flex items-center justify-center">
+              <Settings2 className="h-3.5 w-3.5 text-white" />
+            </div>
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+              Account
+            </span>
           </div>
-          
-          <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-violet-500" />
-            Profile Details
-          </h2>
-          
-          <div className="space-y-6 relative z-10">
-            <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-white leading-tight">Settings</h1>
+          <p className="text-sm text-slate-300 mt-0.5">
+            Manage your profile and security preferences
+          </p>
+        </div>
+      </motion.div>
+
+      {/* ── Cards grid ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        {/* ── Profile card ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.08 }}
+          className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm shadow-sm overflow-hidden"
+        >
+          {/* Card header */}
+          <div className="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-border/40">
+            <div className="h-7 w-7 rounded-lg flex items-center justify-center bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-sm flex-shrink-0">
+              <User className="h-3.5 w-3.5" />
+            </div>
+            <span className="text-sm font-semibold">Profile Details</span>
+          </div>
+
+          <div className="p-6 space-y-5">
+            {/* Avatar + name row */}
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border/40">
               <UserAvatar
                 name={user.name}
                 profilePicture={user.profile_picture}
                 size="lg"
               />
               <div>
-                <div className="text-lg font-semibold">{user.name}</div>
-                <div className="text-sm text-muted-foreground">@{user.username}</div>
+                <p className="text-base font-semibold">{user.name}</p>
+                <p className="text-sm text-muted-foreground">@{user.username}</p>
               </div>
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Full Name</label>
-              <div className="text-lg font-medium mt-1">{user.name}</div>
-            </div>
-            
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Username</label>
-              <div className="text-lg font-medium mt-1">@{user.username}</div>
-            </div>
-            
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email Address</label>
-              <div className="flex items-center gap-2 mt-1">
-                <div className="text-lg font-medium">{user.email}</div>
-                <CheckCircle2 className="w-4 h-4 text-green-500" />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/50">
+            {/* Fields */}
+            <div className="space-y-4">
+              {[
+                { label: "Full Name", value: user.name, icon: <User className="h-3.5 w-3.5" /> },
+                { label: "Username", value: `@${user.username}`, icon: <BadgeCheck className="h-3.5 w-3.5" /> },
+              ].map(({ label, value, icon }) => (
+                <div key={label}>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    {label}
+                  </p>
+                  <div className="flex items-center gap-2 h-10 px-3 rounded-xl bg-muted/40 border border-border/50">
+                    <span className="text-muted-foreground">{icon}</span>
+                    <span className="text-sm font-medium">{value}</span>
+                  </div>
+                </div>
+              ))}
+
+              {/* Email with verified badge */}
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Role</label>
-                <div className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-1 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-400 font-medium text-sm capitalize">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  {user.role}
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  Email Address
+                </p>
+                <div className="flex items-center gap-2 h-10 px-3 rounded-xl bg-muted/40 border border-border/50">
+                  <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-sm font-medium flex-1">{user.email}</span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Verified
+                  </span>
                 </div>
               </div>
+            </div>
+
+            {/* Role badge */}
+            <div className="pt-4 border-t border-border/40">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Role</p>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border border-violet-200 dark:border-violet-800/40 capitalize">
+                <ShieldCheck className="h-4 w-4" />
+                {user.role}
+              </span>
             </div>
           </div>
         </motion.div>
 
-        {/* SECURITY & PASSWORD CARD */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+        {/* ── Security card ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className="bg-card/30 backdrop-blur-md rounded-2xl border border-white/10 dark:border-white/5 shadow-xl p-8 relative overflow-hidden"
+          transition={{ duration: 0.35, delay: 0.16 }}
+          className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-sm shadow-sm overflow-hidden"
         >
-          <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-            <Lock className="w-5 h-5 text-indigo-500" />
-            Security
-          </h2>
+          {/* Card header */}
+          <div className="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-border/40">
+            <div className="h-7 w-7 rounded-lg flex items-center justify-center bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-sm flex-shrink-0">
+              <Lock className="h-3.5 w-3.5" />
+            </div>
+            <span className="text-sm font-semibold">Security</span>
+          </div>
 
-          <AnimatePresence mode="wait">
-            {passwordChanged ? (
-              <motion.div 
-                key="success"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center justify-center text-center py-10"
-              >
-                <div className="w-16 h-16 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mb-4">
-                  <CheckCircle2 className="w-8 h-8" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">Password Updated</h3>
-                <p className="text-muted-foreground text-sm">Your new password is now active.</p>
-              </motion.div>
-            ) : !otpSent ? (
-              <motion.div
-                key="request"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="flex flex-col space-y-6"
-              >
-                <div>
-                  <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                    To change your password, we need to verify your identity. We'll send a 6-digit authorization code to your registered email address securely.
+          <div className="p-6">
+            <AnimatePresence mode="wait">
+
+              {/* ── Success state ── */}
+              {passwordChanged ? (
+                <motion.div
+                  key="success"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.25 }}
+                  className="flex flex-col items-center justify-center text-center py-12 gap-4"
+                >
+                  <div className="h-16 w-16 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center border border-emerald-200 dark:border-emerald-800/40 shadow-sm">
+                    <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">Password Updated</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Your new password is now active.</p>
+                  </div>
+                </motion.div>
+
+              ) : !otpSent ? (
+                /* ── Request OTP state ── */
+                <motion.div
+                  key="request"
+                  initial={{ opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 16 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-5"
+                >
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    To change your password, we'll verify your identity by sending a 6-digit code to your registered email.
                   </p>
-                  
-                  <div className="bg-background/50 rounded-xl p-4 border border-border/50 flex items-start gap-4">
-                    <div className="bg-indigo-500/20 p-2 rounded-lg text-indigo-500">
-                      <Mail className="w-5 h-5" />
+
+                  <div className="flex items-start gap-3 p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/40">
+                    <div className="h-8 w-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 flex-shrink-0">
+                      <Mail className="h-4 w-4" />
                     </div>
                     <div>
-                      <div className="font-medium text-sm">Target Email</div>
-                      <div className="text-muted-foreground text-sm">{user.email}</div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600/70 dark:text-indigo-400/70 mb-0.5">
+                        Sending code to
+                      </p>
+                      <p className="text-sm font-medium text-indigo-700 dark:text-indigo-300">{user.email}</p>
                     </div>
                   </div>
-                </div>
 
-                <Button 
-                  onClick={handleRequestOTP} 
-                  disabled={isRequestingOTP}
-                  className="w-full mt-8 h-12 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-500/20"
+                  <Button
+                    onClick={handleRequestOTP}
+                    disabled={isRequestingOTP}
+                    className="w-full h-11 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white rounded-xl shadow-md shadow-indigo-500/20 font-semibold mt-2"
+                  >
+                    {isRequestingOTP ? (
+                      "Sending…"
+                    ) : (
+                      <>Send Authorization Code <ArrowRight className="h-4 w-4 ml-1.5" /></>
+                    )}
+                  </Button>
+                </motion.div>
+
+              ) : (
+                /* ── Verify & set password state ── */
+                <motion.div
+                  key="verify"
+                  initial={{ opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 16 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-5"
                 >
-                  {isRequestingOTP ? "Sending..." : "Send Authorization Code"}
-                  {!isRequestingOTP && <ArrowRight className="w-4 h-4 ml-2" />}
-                </Button>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="verify"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="space-y-6"
-              >
-                <p className="text-sm text-muted-foreground pb-2">
-                  We've sent a 6-digit code to <span className="font-medium text-foreground">{user.email}</span>.
-                </p>
+                  <p className="text-sm text-muted-foreground">
+                    Code sent to{" "}
+                    <span className="font-semibold text-foreground">{user.email}</span>
+                  </p>
 
-                <div className="space-y-3">
-                  <label className="text-sm font-medium">Authorization Code</label>
-                  <div className="flex justify-center sm:justify-start">
-                    <InputOTP 
-                      maxLength={6} 
-                      value={otp} 
-                      onChange={setOtp}
-                      disabled={isVerifying}
-                    >
-                      <InputOTPGroup className="gap-2">
-                        {[0, 1, 2, 3, 4, 5].map((index) => (
-                          <InputOTPSlot 
-                            key={index} 
-                            index={index} 
-                            className="w-10 h-12 sm:w-12 sm:h-14 text-lg rounded-md border-border/50 bg-background/50 data-[state=active]:border-indigo-500 data-[state=active]:ring-1 data-[state=active]:ring-indigo-500 shadow-sm"
-                          />
-                        ))}
-                      </InputOTPGroup>
-                    </InputOTP>
+                  {/* OTP field */}
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Authorization Code
+                    </p>
+                    <div className="flex justify-center sm:justify-start">
+                      <InputOTP
+                        maxLength={6}
+                        value={otp}
+                        onChange={setOtp}
+                        disabled={isVerifying}
+                      >
+                        <InputOTPGroup className="gap-2">
+                          {[0, 1, 2, 3, 4, 5].map((i) => (
+                            <InputOTPSlot
+                              key={i}
+                              index={i}
+                              className="w-10 h-12 sm:w-11 sm:h-13 text-lg rounded-xl border-border/50 bg-muted/40 data-[active=true]:border-indigo-500 data-[active=true]:ring-1 data-[active=true]:ring-indigo-500 shadow-sm font-mono"
+                            />
+                          ))}
+                        </InputOTPGroup>
+                      </InputOTP>
+                    </div>
                   </div>
-                </div>
 
-                <div className="space-y-3 pt-2">
-                  <label className="text-sm font-medium">New Password</label>
-                  <Input 
-                    type="password" 
-                    placeholder="••••••••" 
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    disabled={isVerifying}
-                    className="h-12 bg-background/50 border-border/50 focus-visible:ring-indigo-500"
-                  />
-                </div>
+                  {/* New password */}
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      New Password
+                    </p>
+                    <div className="relative">
+                      <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        type="password"
+                        placeholder="••••••••"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        disabled={isVerifying}
+                        className="pl-9 h-11 rounded-xl bg-muted/40 border-border/50 focus-visible:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
 
-                <Button 
-                  onClick={handleVerifyOTP} 
-                  disabled={isVerifying || otp.length !== 6 || newPassword.length < 6}
-                  className="w-full h-12 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-500/20"
-                >
-                  {isVerifying ? "Verifying..." : "Update Password"}
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
+                  <Button
+                    onClick={handleVerifyOTP}
+                    disabled={isVerifying || otp.length !== 6 || newPassword.length < 6}
+                    className="w-full h-11 bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 text-white rounded-xl shadow-md shadow-indigo-500/20 font-semibold"
+                  >
+                    {isVerifying ? "Verifying…" : "Update Password"}
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </motion.div>
       </div>
     </div>

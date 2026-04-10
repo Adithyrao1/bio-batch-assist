@@ -255,3 +255,37 @@ class RecentActivity(models.Model):
 
     def __str__(self):
         return f"{self.user.username}: {self.content[:50]}"
+
+
+# ============================================
+# MEDIA–CHEMICAL COMPOSITION & USAGE
+# ============================================
+class MediaChemicalRequirement(models.Model):
+    """Defines how much of a chemical is needed per litre of a given media type."""
+    media_type = models.ForeignKey(MediaType, on_delete=models.CASCADE, related_name='chemical_requirements')
+    chemical = models.ForeignKey(Chemical, on_delete=models.PROTECT, related_name='media_requirements')
+    quantity_required = models.DecimalField(
+        max_digits=10, decimal_places=4,
+        help_text='Amount of chemical required per litre of media (in chemical\'s own unit)'
+    )
+
+    class Meta:
+        unique_together = [['media_type', 'chemical']]
+        ordering = ['media_type', 'chemical']
+
+    def __str__(self):
+        return f"{self.media_type.name} → {self.chemical.name} ({self.quantity_required}/L)"
+
+
+class ChemicalUsageLog(models.Model):
+    """Immutable audit record created whenever chemicals are deducted for a media preparation."""
+    chemical = models.ForeignKey(Chemical, on_delete=models.PROTECT, related_name='usage_logs')
+    media_preparation = models.ForeignKey(MediaPreparation, on_delete=models.CASCADE, related_name='chemical_usage_logs')
+    quantity_consumed = models.DecimalField(max_digits=10, decimal_places=4)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.chemical.name} — {self.quantity_consumed} consumed for Batch {self.media_preparation.batch_number}"

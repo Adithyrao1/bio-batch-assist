@@ -1,5 +1,5 @@
 import { ReactNode, useState } from "react";
-import { Plus, Search, Download, Loader2 } from "lucide-react";
+import { Plus, Search, Download, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,6 +31,8 @@ interface ModulePageProps<T> {
   data: T[];
   columns: Column<T>[];
   isLoading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
   onAddNew?: () => void;
   onEdit?: (item: T) => void;
   onDelete?: (item: T) => void;
@@ -43,6 +45,8 @@ export function ModulePage<T extends { id: string | number }>({
   data,
   columns,
   isLoading = false,
+  isError = false,
+  onRetry,
   onAddNew,
   onEdit,
   onDelete,
@@ -110,6 +114,22 @@ export function ModulePage<T extends { id: string | number }>({
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center px-4">
+            <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
+              <AlertTriangle className="h-6 w-6 text-destructive" />
+            </div>
+            <p className="font-semibold text-foreground">Failed to load data</p>
+            <p className="text-sm text-muted-foreground max-w-xs">Could not connect to the server. Check your connection or make sure the backend is running.</p>
+            {onRetry && (
+              <button
+                onClick={onRetry}
+                className="mt-1 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                <RefreshCw className="h-3.5 w-3.5" /> Retry
+              </button>
+            )}
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState />

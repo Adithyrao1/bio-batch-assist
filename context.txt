@@ -2,7 +2,7 @@
 
 ### **1. APPLICATION OVERVIEW**
 
-**Bio-Batch-Assist** is a **DCM SHRIRAM Tissue Culture Data Management System** for managing Sugarcane tissue culture lab operations. It's a web-based application for tracking production batches, contamination monitoring, chemical inventory, and greenhouse operations across multiple specialized lab areas.
+**DCM LabNest** is a **DCM SHRIRAM Tissue Culture Data Management System** for managing Sugarcane tissue culture lab operations. It's a web-based application for tracking production batches, contamination monitoring, chemical inventory, and greenhouse operations across multiple specialized lab areas.
 
 ---
 

@@ -10,6 +10,9 @@
   ChemicalCreate,
   MediaPreparation,
   MediaPreparationCreate,
+  MediaChemicalRequirement,
+  MediaChemicalRequirementCreate,
+  ChemicalUsageLog,
   ContaminationMonitoring,
   ContaminationMonitoringCreate,
   ContaminationReport,
@@ -433,6 +436,8 @@ export const chemicalsApi = {
 };
 
 export const mediaPreparationApi = createCrudApi<MediaPreparation, MediaPreparationCreate>('media-preparation');
+export const mediaChemicalRequirementsApi = createCrudApi<MediaChemicalRequirement, MediaChemicalRequirementCreate>('media-chemical-requirements');
+export const chemicalUsageLogsApi = createCrudApi<ChemicalUsageLog>('chemical-usage-logs');
 export const contaminationMonitoringApi = createCrudApi<ContaminationMonitoring, ContaminationMonitoringCreate>('contamination-monitoring');
 export const contaminationReportsApi = createCrudApi<ContaminationReport, ContaminationReportCreate>('contamination-reports');
 export const inoculationRoomApi = createCrudApi<InoculationRoom, InoculationRoomCreate>('inoculation-room');
@@ -463,6 +468,9 @@ export type {
   ChemicalCreate,
   MediaPreparation,
   MediaPreparationCreate,
+  MediaChemicalRequirement,
+  MediaChemicalRequirementCreate,
+  ChemicalUsageLog,
   ContaminationMonitoring,
   ContaminationMonitoringCreate,
   ContaminationReport,

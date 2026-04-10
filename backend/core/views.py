@@ -1,9 +1,10 @@
-from rest_framework import viewsets, status, permissions
+﻿from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
+from django.db import transaction
 from django.db.models import Sum, Count
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
@@ -19,7 +20,7 @@ from .models import (
     User, Area, Variety, MediaType, FindingType,
     Chemical, MediaPreparation, ContaminationMonitoring,
     ContaminationReport, InoculationRoom, GrowthRoom, Greenhouse,
-    UserOTP, RecentActivity
+    UserOTP, RecentActivity, MediaChemicalRequirement, ChemicalUsageLog
 )
 from .serializers import (
     UserSerializer, UserCreateSerializer, AreaSerializer, VarietySerializer,
@@ -28,7 +29,8 @@ from .serializers import (
     ContaminationReportSerializer, InoculationRoomSerializer,
     GrowthRoomSerializer, GreenhouseSerializer,
     LoginSerializer, SignupSerializer, UserProfileSerializer,
-    RequestOTPSerializer, VerifyOTPSerializer, RecentActivitySerializer
+    RequestOTPSerializer, VerifyOTPSerializer, RecentActivitySerializer,
+    MediaChemicalRequirementSerializer, ChemicalUsageLogSerializer
 )
 
 
@@ -230,13 +232,13 @@ class RequestOTPView(APIView):
             expires_at=expires_at
         )
 
-        subject = 'Your Bio-Batch-Assist Signup Code'
+        subject = 'Your DCM LabNest Signup Code'
         text_content = f'Welcome! Your signup verification code is: {otp_code}'
         
         html_content = f"""
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f4ff; border-radius: 16px;">
             <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #1a1035; margin-bottom: 5px;">Bio-Batch Assist</h1>
+                <h1 style="color: #1a1035; margin-bottom: 5px;">DCM LabNest</h1>
                 <p style="color: #6b7280; margin-top: 0; font-size: 14px;">Secure Identity Verification</p>
             </div>
             
@@ -383,7 +385,7 @@ class CompleteSignupView(APIView):
 
         full_name = f"{first_name} {last_name}".strip() or username
 
-        user_subject = 'Welcome to Bio-Batch-Assist: Your Login Credentials'
+        user_subject = 'Welcome to DCM LabNest: Your Login Credentials'
         user_text = (
             f'Welcome {full_name},\n\n'
             f'Your account has been created.\n'
@@ -394,7 +396,7 @@ class CompleteSignupView(APIView):
         user_html = f"""
         <div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;max-width:600px;margin:0 auto;padding:20px;background-color:#f5f4ff;border-radius:16px;">
             <div style="text-align:center;margin-bottom:30px;">
-                <h1 style="color:#1a1035;margin-bottom:5px;">Bio-Batch Assist</h1>
+                <h1 style="color:#1a1035;margin-bottom:5px;">DCM LabNest</h1>
                 <p style="color:#6b7280;margin-top:0;font-size:14px;">Account Created Successfully</p>
             </div>
             <div style="background-color:#ffffff;padding:30px;border-radius:12px;box-shadow:0 4px 6px rgba(124,58,237,0.05);border:1px solid rgba(124,58,237,0.1);">
@@ -479,7 +481,7 @@ class ForgotPasswordRequestView(APIView):
         UserOTP.objects.filter(email=email, is_used=False).update(is_used=True)
         UserOTP.objects.create(email=email, otp=otp_code, expires_at=expires_at)
 
-        subject = 'Bio-Batch Assist: Password Reset Code'
+        subject = 'DCM LabNest: Password Reset Code'
         text_content = (
             f'Hello {user.first_name or user.username}, '
             f'your password reset code is: {otp_code}. '
@@ -488,7 +490,7 @@ class ForgotPasswordRequestView(APIView):
         html_content = f"""
         <div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;max-width:600px;margin:0 auto;padding:20px;background-color:#f5f4ff;border-radius:16px;">
             <div style="text-align:center;margin-bottom:30px;">
-                <h1 style="color:#1a1035;margin-bottom:5px;">Bio-Batch Assist</h1>
+                <h1 style="color:#1a1035;margin-bottom:5px;">DCM LabNest</h1>
                 <p style="color:#6b7280;margin-top:0;font-size:14px;">Password Reset Request</p>
             </div>
             <div style="background-color:#ffffff;padding:30px;border-radius:12px;box-shadow:0 4px 6px rgba(124,58,237,0.05);border:1px solid rgba(124,58,237,0.1);">
@@ -601,7 +603,7 @@ class AuthSettingsOTPRequestView(APIView):
         html_content = f"""
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f4ff; border-radius: 16px;">
             <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #1a1035; margin-bottom: 5px;">Bio-Batch Assist</h1>
+                <h1 style="color: #1a1035; margin-bottom: 5px;">DCM LabNest</h1>
                 <p style="color: #6b7280; margin-top: 0; font-size: 14px;">Account Security Settings</p>
             </div>
             
@@ -785,7 +787,24 @@ class MediaPreparationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminOrTechnician]
 
     def perform_create(self, serializer):
-        serializer.save(prepared_by=self.request.user)
+        with transaction.atomic():
+            media_prep = serializer.save(prepared_by=self.request.user)
+
+            quantity = media_prep.quantity or 0
+            if quantity > 0:
+                requirements = MediaChemicalRequirement.objects.filter(
+                    media_type=media_prep.media_type
+                ).select_related('chemical')
+
+                for req in requirements:
+                    consumed = req.quantity_required * quantity
+                    ChemicalUsageLog.objects.create(
+                        chemical=req.chemical,
+                        media_preparation=media_prep,
+                        quantity_consumed=consumed,
+                    )
+                    req.chemical.remaining_stock -= consumed
+                    req.chemical.save(update_fields=['remaining_stock'])
 
 
 class ContaminationMonitoringViewSet(viewsets.ModelViewSet):
@@ -828,6 +847,36 @@ class RecentActivityViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+# ============================================
+# CHEMICAL <-> MEDIA PREPARATION VIEWSETS
+# ============================================
+class MediaChemicalRequirementViewSet(viewsets.ModelViewSet):
+    serializer_class = MediaChemicalRequirementSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = MediaChemicalRequirement.objects.select_related('media_type', 'chemical').all()
+        media_type = self.request.query_params.get('media_type')
+        if media_type:
+            qs = qs.filter(media_type_id=media_type)
+        return qs
+
+
+class ChemicalUsageLogViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = ChemicalUsageLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = ChemicalUsageLog.objects.select_related('chemical', 'media_preparation').all()
+        media_preparation = self.request.query_params.get('media_preparation')
+        chemical = self.request.query_params.get('chemical')
+        if media_preparation:
+            qs = qs.filter(media_preparation_id=media_preparation)
+        if chemical:
+            qs = qs.filter(chemical_id=chemical)
+        return qs.order_by('-timestamp')
 
 
 # ============================================

@@ -3,8 +3,15 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
     User, Area, Variety, MediaType, FindingType,
     Chemical, MediaPreparation, ContaminationMonitoring,
-    ContaminationReport, InoculationRoom, GrowthRoom, Greenhouse
+    ContaminationReport, InoculationRoom, GrowthRoom, Greenhouse,
+    MediaChemicalRequirement, ChemicalUsageLog
 )
+
+
+class MediaChemicalRequirementInline(admin.TabularInline):
+    model = MediaChemicalRequirement
+    extra = 1
+    autocomplete_fields = ['chemical']
 
 
 @admin.register(User)
@@ -34,6 +41,7 @@ class VarietyAdmin(admin.ModelAdmin):
 @admin.register(MediaType)
 class MediaTypeAdmin(admin.ModelAdmin):
     list_display = ['name', 'description']
+    inlines = [MediaChemicalRequirementInline]
 
 
 @admin.register(FindingType)
@@ -46,6 +54,24 @@ class ChemicalAdmin(admin.ModelAdmin):
     list_display = ['name', 'quantity', 'unit', 'remaining_stock', 'expiry_date']
     list_filter = ['unit']
     search_fields = ['name']
+@admin.register(MediaChemicalRequirement)
+class MediaChemicalRequirementAdmin(admin.ModelAdmin):
+    list_display = ['media_type', 'chemical', 'quantity_required']
+    list_filter = ['media_type']
+    search_fields = ['media_type__name', 'chemical__name']
+
+
+@admin.register(ChemicalUsageLog)
+class ChemicalUsageLogAdmin(admin.ModelAdmin):
+    list_display = ['chemical', 'media_preparation', 'quantity_consumed', 'timestamp']
+    list_filter = ['chemical', 'timestamp']
+    readonly_fields = ['chemical', 'media_preparation', 'quantity_consumed', 'timestamp']
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(MediaPreparation)

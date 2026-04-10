@@ -248,6 +248,36 @@ export interface GreenhouseCreate {
 }
 
 // ============================================
+// Media–Chemical Composition & Usage Types
+// ============================================
+export interface MediaChemicalRequirement {
+  id: number;
+  media_type: number;
+  media_type_name?: string;
+  chemical: number;
+  chemical_name?: string;
+  chemical_unit?: string;
+  quantity_required: number;
+}
+
+export interface MediaChemicalRequirementCreate {
+  media_type: number;
+  chemical: number;
+  quantity_required: number;
+}
+
+export interface ChemicalUsageLog {
+  id: number;
+  chemical: number;
+  chemical_name?: string;
+  chemical_unit?: string;
+  media_preparation: number;
+  batch_number?: string;
+  quantity_consumed: number;
+  timestamp: string;
+}
+
+// ============================================
 // Dashboard Types
 // ============================================
 export interface RecentActivity {

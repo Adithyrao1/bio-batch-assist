@@ -38,6 +38,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Auto-logout when JWT refresh fails in any API call
+  useEffect(() => {
+    const handler = () => {
+      authApi.clearStoredUser();
+      setUser(null);
+    };
+    window.addEventListener('auth:token-expired', handler);
+    return () => window.removeEventListener('auth:token-expired', handler);
+  }, []);
+
   // Check for existing session on mount
   useEffect(() => {
     const storedUser = authApi.getStoredUser();

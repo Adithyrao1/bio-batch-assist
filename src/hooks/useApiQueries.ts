@@ -8,6 +8,8 @@ import {
   findingTypesApi,
   chemicalsApi,
   mediaPreparationApi,
+  mediaChemicalRequirementsApi,
+  chemicalUsageLogsApi,
   contaminationMonitoringApi,
   contaminationReportsApi,
   inoculationRoomApi,
@@ -35,6 +37,9 @@ import {
   type GrowthRoomCreate,
   type Greenhouse,
   type GreenhouseCreate,
+  type MediaChemicalRequirement,
+  type MediaChemicalRequirementCreate,
+  type ChemicalUsageLog,
   type RecentActivityCreate,
   type DashboardResponse,
 } from '@/lib/api';
@@ -291,6 +296,67 @@ export function useDeleteMediaPreparation() {
   return useMutation({
     mutationFn: (id: number) => mediaPreparationApi.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-preparation'] }),
+  });
+}
+
+// ============================================
+// MEDIA CHEMICAL REQUIREMENTS HOOKS
+// ============================================
+export function useMediaChemicalRequirements(params?: Record<string, string | number>) {
+  return useQuery<PaginatedResponse<MediaChemicalRequirement>>({
+    queryKey: ['media-chemical-requirements', params],
+    queryFn: () => mediaChemicalRequirementsApi.getAll(params),
+  });
+}
+
+export function useMediaChemicalRequirementsByMediaType(mediaTypeId: number) {
+  return useQuery<PaginatedResponse<MediaChemicalRequirement>>({
+    queryKey: ['media-chemical-requirements', { media_type: mediaTypeId }],
+    queryFn: () => mediaChemicalRequirementsApi.getAll({ media_type: mediaTypeId }),
+    enabled: !!mediaTypeId,
+  });
+}
+
+export function useCreateMediaChemicalRequirement() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: MediaChemicalRequirementCreate) => mediaChemicalRequirementsApi.create(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-chemical-requirements'] }),
+  });
+}
+
+export function useUpdateMediaChemicalRequirement() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<MediaChemicalRequirementCreate> }) =>
+      mediaChemicalRequirementsApi.update(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-chemical-requirements'] }),
+  });
+}
+
+export function useDeleteMediaChemicalRequirement() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => mediaChemicalRequirementsApi.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-chemical-requirements'] }),
+  });
+}
+
+// ============================================
+// CHEMICAL USAGE LOGS HOOKS
+// ============================================
+export function useChemicalUsageLogs(params?: Record<string, string | number>) {
+  return useQuery<PaginatedResponse<ChemicalUsageLog>>({
+    queryKey: ['chemical-usage-logs', params],
+    queryFn: () => chemicalUsageLogsApi.getAll(params),
+  });
+}
+
+export function useChemicalUsageLogsByMediaPrep(mediaPrepId: number) {
+  return useQuery<PaginatedResponse<ChemicalUsageLog>>({
+    queryKey: ['chemical-usage-logs', { media_preparation: mediaPrepId }],
+    queryFn: () => chemicalUsageLogsApi.getAll({ media_preparation: mediaPrepId }),
+    enabled: !!mediaPrepId,
   });
 }
 

@@ -18,7 +18,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { useMediaTypes } from "@/hooks/useApiQueries";
+import { AlertTriangle } from "lucide-react";
+import { useMediaTypes, useMediaChemicalRequirementsByMediaType, useChemicals } from "@/hooks/useApiQueries";
 import type { MediaPreparation, MediaPreparationCreate } from "@/types/api";
 
 function todayISO(): string {
@@ -84,6 +85,26 @@ export default function MediaPreparationDialog({
     const { data: mediaTypesData } = useMediaTypes();
     const mediaTypes = mediaTypesData?.results ?? [];
 
+    const selectedMediaTypeId = form.media_type ? Number(form.media_type) : 0;
+    const { data: reqData } = useMediaChemicalRequirementsByMediaType(selectedMediaTypeId);
+    const { data: chemicalsData } = useChemicals();
+    const requirements = reqData?.results ?? [];
+    const chemicalsMap = Object.fromEntries(
+        (chemicalsData?.results ?? []).map((c) => [c.id, c])
+    );
+
+    const qty = parseFloat(form.quantity);
+    const hasQty = !isNaN(qty) && qty > 0;
+    const preview = hasQty && requirements.length > 0
+        ? requirements.map((req) => ({
+            id: req.id,
+            name: req.chemical_name ?? "",
+            unit: req.chemical_unit ?? "",
+            consumed: req.quantity_required * qty,
+            remaining: chemicalsMap[req.chemical]?.remaining_stock ?? null,
+          }))
+        : [];
+
     useEffect(() => {
         if (open) {
             if (mode === "edit" && initialData) {
@@ -110,7 +131,9 @@ export default function MediaPreparationDialog({
 
         if (form.quantity) {
             const q = parseFloat(form.quantity);
-            if (isNaN(q) || q < 0) newErrors.quantity = "Must be a positive number";
+            if (isNaN(q) || q <= 0) newErrors.quantity = "Must be a positive number";
+        } else {
+            newErrors.quantity = "Quantity is required";
         }
 
         if (form.bottles_issued) {
@@ -121,6 +144,10 @@ export default function MediaPreparationDialog({
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     }
+
+    const hasStockWarning = mode === "create" && preview.some(
+        (row) => row.remaining !== null && row.consumed > row.remaining
+    );
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -146,14 +173,15 @@ export default function MediaPreparationDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[550px]">
-                <DialogHeader>
+            <DialogContent className="sm:max-w-[580px] max-h-[90vh] flex flex-col">
+                <DialogHeader className="shrink-0">
                     <DialogTitle>
                         {mode === "create" ? "Add Media Batch" : "Edit Media Batch"}
                     </DialogTitle>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+                    <div className="space-y-4 overflow-y-auto flex-1 pr-1">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <Label htmlFor="batch_number">Batch Number <span className="text-destructive">*</span></Label>
@@ -213,7 +241,7 @@ export default function MediaPreparationDialog({
                             {errors.bottles_prepared && <p className="text-xs text-destructive mt-1">{errors.bottles_prepared}</p>}
                         </div>
                         <div>
-                            <Label htmlFor="quantity">Quantity (L/kg) <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                            <Label htmlFor="quantity">Quantity (L) <span className="text-destructive">*</span></Label>
                             <Input
                                 id="quantity"
                                 type="number"
@@ -266,7 +294,34 @@ export default function MediaPreparationDialog({
                         </div>
                     </div>
 
-                    <DialogFooter>
+                    {mode === "create" && preview.length > 0 && (
+                        <div className="rounded-lg border bg-muted/50 p-3 space-y-2">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Chemicals to be consumed</p>
+                            <div className="divide-y max-h-48 overflow-y-auto">
+                                {preview.map((row) => {
+                                    const warn = row.remaining !== null && row.consumed > row.remaining;
+                                    return (
+                                        <div key={row.id} className="flex items-center justify-between py-1.5 text-sm">
+                                            <span className="flex items-center gap-1.5">
+                                                {warn && <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
+                                                <span className={warn ? "text-amber-600" : ""}>{row.name}</span>
+                                            </span>
+                                            <span className="text-muted-foreground tabular-nums">
+                                                {row.consumed.toFixed(4)} {row.unit}
+                                                {warn && row.remaining !== null && (
+                                                    <span className="ml-2 text-xs text-amber-500">(stock: {row.remaining})</span>
+                                                )}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    </div>{/* end scrollable body */}
+
+                    <DialogFooter className="shrink-0 pt-4 border-t mt-2">
                         <Button
                             type="button"
                             variant="outline"
@@ -275,7 +330,7 @@ export default function MediaPreparationDialog({
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isSubmitting}>
+                        <Button type="submit" disabled={isSubmitting || hasStockWarning}>
                             {isSubmitting ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
