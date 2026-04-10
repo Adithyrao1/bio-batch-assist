@@ -2,7 +2,8 @@ from rest_framework import serializers
 from .models import (
     User, Area, Variety, MediaType, FindingType,
     Chemical, MediaPreparation, ContaminationMonitoring,
-    ContaminationReport, InoculationRoom, GrowthRoom, Greenhouse
+    ContaminationReport, InoculationRoom, GrowthRoom, Greenhouse,
+    RecentActivity
 )
 
 
@@ -176,3 +177,11 @@ class RequestOTPSerializer(serializers.Serializer):
 class VerifyOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()
     otp = serializers.CharField(min_length=6, max_length=6)
+
+class RecentActivitySerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source='user.get_full_name', read_only=True)
+
+    class Meta:
+        model = RecentActivity
+        fields = ['id', 'user', 'user_name', 'content', 'timestamp']
+        read_only_fields = ['user', 'timestamp']

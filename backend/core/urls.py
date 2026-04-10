@@ -22,6 +22,7 @@ router.register(r'contamination-reports', views.ContaminationReportViewSet)
 router.register(r'inoculation-room', views.InoculationRoomViewSet)
 router.register(r'growth-room', views.GrowthRoomViewSet)
 router.register(r'greenhouse', views.GreenhouseViewSet)
+router.register(r'recent-activity', views.RecentActivityViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -38,4 +39,7 @@ urlpatterns = [
     path('auth/verify-otp/', views.VerifyOTPView.as_view(), name='verify_otp'),
     path('auth/settings/request-otp/', views.AuthSettingsOTPRequestView.as_view(), name='settings_request_otp'),
     path('auth/settings/verify-otp/', views.AuthSettingsOTPVerifyView.as_view(), name='settings_verify_otp'),
+    path('auth/complete-signup/', views.CompleteSignupView.as_view(), name='complete_signup'),
+    path('auth/forgot-password/request-otp/', views.ForgotPasswordRequestView.as_view(), name='forgot_password_request'),
+    path('auth/forgot-password/reset/', views.ForgotPasswordResetView.as_view(), name='forgot_password_reset'),
 ]

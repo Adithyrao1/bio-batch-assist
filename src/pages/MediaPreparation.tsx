@@ -1,7 +1,14 @@
+import { useState } from "react";
 import { ModulePage, Column } from "@/components/ModulePage";
-import { useMediaPreparation, useDeleteMediaPreparation } from "@/hooks/useApiQueries";
+import {
+  useMediaPreparation,
+  useDeleteMediaPreparation,
+  useCreateMediaPreparation,
+  useUpdateMediaPreparation,
+} from "@/hooks/useApiQueries";
 import { useToast } from "@/hooks/use-toast";
-import type { MediaPreparation } from "@/types/api";
+import type { MediaPreparation, MediaPreparationCreate } from "@/types/api";
+import MediaPreparationDialog from "@/components/MediaPreparationDialog";
 
 const columns: Column<MediaPreparation>[] = [
   { key: "batch_number", header: "Batch #" },
@@ -16,7 +23,25 @@ const columns: Column<MediaPreparation>[] = [
 export default function MediaPreparation() {
   const { toast } = useToast();
   const { data, isLoading } = useMediaPreparation();
+  const createRecord = useCreateMediaPreparation();
+  const updateRecord = useUpdateMediaPreparation();
   const deleteRecord = useDeleteMediaPreparation();
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
+  const [selectedRecord, setSelectedRecord] = useState<MediaPreparation | null>(null);
+
+  const handleAddNew = () => {
+    setDialogMode("create");
+    setSelectedRecord(null);
+    setDialogOpen(true);
+  };
+
+  const handleEdit = (item: MediaPreparation) => {
+    setDialogMode("edit");
+    setSelectedRecord(item);
+    setDialogOpen(true);
+  };
 
   const handleDelete = (item: MediaPreparation) => {
     if (confirm("Are you sure you want to delete this record?")) {
@@ -27,16 +52,40 @@ export default function MediaPreparation() {
     }
   };
 
+  const handleSubmit = async (formData: MediaPreparationCreate) => {
+    try {
+      if (dialogMode === "create") {
+        await createRecord.mutateAsync(formData);
+        toast({ title: "Success", description: "Batch created successfully." });
+      } else if (dialogMode === "edit" && selectedRecord) {
+        await updateRecord.mutateAsync({ id: selectedRecord.id, data: formData });
+        toast({ title: "Success", description: "Batch updated successfully." });
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Something went wrong.", variant: "destructive" });
+      throw error; // Keep dialog open if API fails
+    }
+  };
+
   return (
-    <ModulePage
-      title="Media Preparation"
-      data={data?.results ?? []}
-      columns={columns}
-      isLoading={isLoading}
-      onAddNew={() => toast({ title: "Add New", description: "Form dialog coming soon." })}
-      onView={(item) => toast({ title: "View", description: `Batch: ${item.batch_number}` })}
-      onEdit={(item) => toast({ title: "Edit", description: `Editing batch ${item.batch_number}` })}
-      onDelete={handleDelete}
-    />
+    <>
+      <ModulePage
+        title="Media Preparation"
+        data={data?.results ?? []}
+        columns={columns}
+        isLoading={isLoading}
+        onAddNew={handleAddNew}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
+
+      <MediaPreparationDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSubmit={handleSubmit}
+        initialData={selectedRecord}
+        mode={dialogMode}
+      />
+    </>
   );
 }

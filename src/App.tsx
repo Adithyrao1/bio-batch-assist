@@ -3,11 +3,13 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ThemeProvider } from "next-themes";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import ContaminationMonitoring from "./pages/ContaminationMonitoring";
 import MediaPreparation from "./pages/MediaPreparation";
@@ -19,6 +21,8 @@ import Greenhouse from "./pages/Greenhouse";
 import MasterData from "./pages/MasterData";
 import UsersPage from "./pages/UsersPage";
 import NotFound from "./pages/NotFound";
+
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -36,16 +40,18 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AuthProvider>
+  <ThemeProvider attribute="class" defaultTheme="dark" storageKey="bio-batch-theme" enableSystem={false}>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
+            <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/contamination-monitoring" element={<ProtectedRoute><ContaminationMonitoring /></ProtectedRoute>} />
             <Route path="/media-preparation" element={<ProtectedRoute><MediaPreparation /></ProtectedRoute>} />
@@ -56,12 +62,14 @@ const App = () => (
             <Route path="/greenhouse" element={<ProtectedRoute><Greenhouse /></ProtectedRoute>} />
             <Route path="/master-data" element={<ProtectedRoute adminOnly><MasterData /></ProtectedRoute>} />
             <Route path="/users" element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;

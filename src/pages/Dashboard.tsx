@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
-import { format, subDays, differenceInDays } from "date-fns";
+import { format, subDays, differenceInDays, formatDistanceToNow } from "date-fns";
 import { DateRange } from "react-day-picker";
-import { FlaskConical, Bug, Sprout, Beaker, Activity, TrendingUp, Calendar as CalendarIcon, Loader2 } from "lucide-react";
+import { FlaskConical, Bug, Sprout, Beaker, Activity, TrendingUp, Calendar as CalendarIcon, Loader2, Send } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Treemap } from "recharts";
-import { useDashboard } from "@/hooks/useApiQueries";
+import { useDashboard, useRecentActivities, useCreateRecentActivity } from "@/hooks/useApiQueries";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
 
 // Minimal Treemap Content to display names
 const CustomizedContent = (props: any) => {
@@ -93,13 +95,6 @@ const CHART_COLORS = [
   "hsl(0, 72%, 51%)",
 ];
 
-const recentActivity = [
-  { action: "Media batch MB-2026-002 prepared", user: "Satyam", time: "2 hours ago" },
-  { action: "Contamination detected in Growth Room 1", user: "Kajal", time: "5 hours ago" },
-  { action: "Greenhouse observation recorded", user: "Anurag", time: "1 day ago" },
-  { action: "New chemical stock received", user: "Satyam", time: "1 day ago" },
-];
-
 const growthStageData = [
   { stage: "Inoculation", count: 120 },
   { stage: "Growth Room", count: 95 },
@@ -123,6 +118,7 @@ const chemicalBurnRate = [
 ];
 
 export default function Dashboard() {
+  const { toast } = useToast();
   const [date, setDate] = useState<DateRange | undefined>({
     from: subDays(new Date(), 30),
     to: new Date(),
@@ -137,6 +133,21 @@ export default function Dashboard() {
   }, [date]);
 
   const { data: dashboardData, isLoading } = useDashboard(days);
+  const { data: recentActivityData } = useRecentActivities();
+  const createActivity = useCreateRecentActivity();
+  const [newActivity, setNewActivity] = useState("");
+
+  const handleCreateActivity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newActivity.trim()) return;
+    try {
+      await createActivity.mutateAsync({ content: newActivity.trim() });
+      setNewActivity("");
+      toast({ title: "Posted", description: "Activity updated successfully." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
 
   // Transform API data for charts
   const productionTrendData = useMemo(() => {
@@ -323,26 +334,48 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Action</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Time</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentActivity.map((item, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="text-sm">{item.action}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="text-xs">{item.user}</Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{item.time}</TableCell>
+              <form onSubmit={handleCreateActivity} className="flex gap-2 mb-4">
+                <Input 
+                  placeholder="Hey! ? any recent update from your side? ."
+                  value={newActivity}
+                  onChange={(e) => setNewActivity(e.target.value)}
+                  className="flex-1"
+                />
+                <Button type="submit" size="sm" disabled={createActivity.isPending}>
+                  {createActivity.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />} Post
+                </Button>
+              </form>
+              <div className="max-h-[300px] overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Action</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Time</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {recentActivityData?.results?.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="text-sm">{item.content}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="text-xs truncate max-w-[100px]">{item.user_name}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {(!recentActivityData?.results || recentActivityData.results.length === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                          No recent activities. Post an update!
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </motion.div>

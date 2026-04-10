@@ -9,13 +9,14 @@ export interface User {
   username: string;
   email: string;
   role: UserRole;
+  profile_picture?: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<boolean>;
-  signup: (data: { username: string; password: string; password_confirm: string; first_name: string; last_name: string; email: string }) => Promise<{ success: boolean; error?: string }>;
+  signup: (data: { username: string; password: string; password_confirm: string; first_name: string; last_name: string; email: string; employee_id: string; mobile_number: string; profile_picture?: File | null }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   hasPermission: (action: "view" | "create" | "edit" | "delete") => boolean;
 }
@@ -29,6 +30,7 @@ function transformUser(apiUser: LoginResponse['user']): User {
     username: apiUser.username,
     email: apiUser.email,
     role: apiUser.role,
+    profile_picture: apiUser.profile_picture,
   };
 }
 
@@ -58,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signup = async (data: { username: string; password: string; password_confirm: string; first_name: string; last_name: string; email: string }): Promise<{ success: boolean; error?: string }> => {
+  const signup = async (data: { username: string; password: string; password_confirm: string; first_name: string; last_name: string; email: string; employee_id: string; mobile_number: string; profile_picture?: File | null }): Promise<{ success: boolean; error?: string }> => {
     try {
       const response = await authApi.signup(data);
       const transformedUser = transformUser(response.user);

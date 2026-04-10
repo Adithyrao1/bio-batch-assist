@@ -20,6 +20,7 @@ export interface User {
   role: 'admin' | 'technician' | 'viewer';
   status: 'active' | 'inactive';
   date_joined?: string;
+  profile_picture?: string | null;
 }
 
 export interface UserCreate {
@@ -104,12 +105,11 @@ export interface MediaPreparationCreate {
   batch_number: string;
   media_type: number;
   prep_date: string;
-  quantity: number;
+  quantity?: number | null;
   bottles_prepared: number;
-  prepared_by: number;
   contamination_notes?: string;
   bottles_issued?: number;
-  issued_date?: string;
+  issued_date?: string | null;
 }
 
 export interface ContaminationMonitoring {
@@ -250,6 +250,18 @@ export interface GreenhouseCreate {
 // ============================================
 // Dashboard Types
 // ============================================
+export interface RecentActivity {
+  id: number;
+  user: number;
+  user_name?: string;
+  content: string;
+  timestamp: string;
+}
+
+export interface RecentActivityCreate {
+  content: string;
+}
+
 export interface DashboardStats {
   total_chemicals: number;
   expired_chemicals: number;

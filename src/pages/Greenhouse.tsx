@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { ModulePage, Column } from "@/components/ModulePage";
-import { useGreenhouse, useDeleteGreenhouse } from "@/hooks/useApiQueries";
+import { useGreenhouse, useCreateGreenhouse, useUpdateGreenhouse, useDeleteGreenhouse } from "@/hooks/useApiQueries";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import type { Greenhouse } from "@/types/api";
+import GreenhouseDialog from "@/components/GreenhouseDialog";
+import type { Greenhouse, GreenhouseCreate } from "@/types/api";
 
 const columns: Column<Greenhouse>[] = [
   { key: "variety_code", header: "Variety" },
@@ -27,7 +29,13 @@ const columns: Column<Greenhouse>[] = [
 export default function Greenhouse() {
   const { toast } = useToast();
   const { data, isLoading } = useGreenhouse();
+  const createRecord = useCreateGreenhouse();
+  const updateRecord = useUpdateGreenhouse();
   const deleteRecord = useDeleteGreenhouse();
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
+  const [selectedItem, setSelectedItem] = useState<Greenhouse | null>(null);
 
   const handleDelete = (item: Greenhouse) => {
     if (confirm("Are you sure you want to delete this record?")) {
@@ -38,16 +46,47 @@ export default function Greenhouse() {
     }
   };
 
+  const handleDialogSubmit = async (formData: GreenhouseCreate) => {
+    try {
+      if (dialogMode === "create") {
+        await createRecord.mutateAsync(formData);
+        toast({ title: "Success", description: "Record added." });
+      } else if (selectedItem) {
+        await updateRecord.mutateAsync({ id: selectedItem.id, data: formData });
+        toast({ title: "Success", description: "Record updated." });
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to save record", variant: "destructive" });
+      throw err;
+    }
+  };
+
   return (
-    <ModulePage
-      title="Greenhouse"
-      data={data?.results ?? []}
-      columns={columns}
-      isLoading={isLoading}
-      onAddNew={() => toast({ title: "Add New", description: "Form dialog coming soon." })}
-      onView={(item) => toast({ title: "View", description: `Batch ${item.batch_number}` })}
-      onEdit={(item) => toast({ title: "Edit", description: `Editing batch ${item.batch_number}` })}
-      onDelete={handleDelete}
-    />
+    <>
+      <ModulePage
+        title="Greenhouse"
+        data={data?.results ?? []}
+        columns={columns}
+        isLoading={isLoading}
+        onAddNew={() => {
+          setDialogMode("create");
+          setSelectedItem(null);
+          setIsDialogOpen(true);
+        }}
+        onEdit={(item) => {
+          setDialogMode("edit");
+          setSelectedItem(item);
+          setIsDialogOpen(true);
+        }}
+        onDelete={handleDelete}
+      />
+      <GreenhouseDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        mode={dialogMode}
+        initialData={selectedItem}
+        onSubmit={handleDialogSubmit}
+      />
+    </>
   );
 }

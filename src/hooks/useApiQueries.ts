@@ -13,6 +13,7 @@ import {
   inoculationRoomApi,
   growthRoomApi,
   greenhouseApi,
+  recentActivityApi,
   type PaginatedResponse,
   type User,
   type UserCreate,
@@ -34,6 +35,7 @@ import {
   type GrowthRoomCreate,
   type Greenhouse,
   type GreenhouseCreate,
+  type RecentActivityCreate,
   type DashboardResponse,
 } from '@/lib/api';
 
@@ -464,5 +466,24 @@ export function useDeleteGreenhouse() {
   return useMutation({
     mutationFn: (id: number) => greenhouseApi.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['greenhouse'] }),
+  });
+}
+
+// ============================================
+// DASHBOARD QUERIES
+// ============================================
+export function useRecentActivities(params?: Record<string, string | number>) {
+  return useQuery({
+    queryKey: ['recent-activities', params],
+    queryFn: () => recentActivityApi.getAll(params),
+    refetchInterval: 30000, // Poll every 30 seconds for live updates
+  });
+}
+
+export function useCreateRecentActivity() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: RecentActivityCreate) => recentActivityApi.create(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['recent-activities'] }),
   });
 }

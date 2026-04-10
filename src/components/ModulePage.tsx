@@ -10,6 +10,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
@@ -26,10 +32,10 @@ interface ModulePageProps<T> {
   columns: Column<T>[];
   isLoading?: boolean;
   onAddNew?: () => void;
-  onView?: (item: T) => void;
   onEdit?: (item: T) => void;
   onDelete?: (item: T) => void;
   renderForm?: (onClose: () => void) => ReactNode;
+  hideViewAction?: boolean;
 }
 
 export function ModulePage<T extends { id: string | number }>({
@@ -38,11 +44,12 @@ export function ModulePage<T extends { id: string | number }>({
   columns,
   isLoading = false,
   onAddNew,
-  onView,
   onEdit,
   onDelete,
+  hideViewAction = false,
 }: ModulePageProps<T>) {
   const [search, setSearch] = useState("");
+  const [viewItem, setViewItem] = useState<T | null>(null);
   const { hasPermission } = useAuth();
 
   const filtered = data.filter((item) =>
@@ -128,8 +135,8 @@ export function ModulePage<T extends { id: string | number }>({
                   ))}
                   <TableCell>
                     <div className="flex gap-1">
-                      {onView && (
-                        <Button variant="ghost" size="sm" onClick={() => onView(item)}>
+                      {!hideViewAction && (
+                        <Button variant="ghost" size="sm" onClick={() => setViewItem(item)}>
                           View
                         </Button>
                       )}
@@ -151,6 +158,34 @@ export function ModulePage<T extends { id: string | number }>({
           </Table>
         )}
       </div>
+
+      <Dialog open={!!viewItem} onOpenChange={(open) => !open && setViewItem(null)}>
+          <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                  <DialogTitle>View Record Details</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                  {viewItem && Object.entries(viewItem).map(([key, value]) => {
+                      if (key === 'id') return null; // usually skip raw ID
+                      
+                      const formatKey = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                      
+                      let displayValue = String(value);
+                      if (value === null || value === undefined) displayValue = "N/A";
+                      else if (typeof value === 'boolean') displayValue = value ? "Yes" : "No";
+                      else if (Array.isArray(value)) displayValue = value.join(', ');
+
+                      return (
+                          <div key={key} className="flex flex-col mb-3 pb-3 border-b border-border/50 last:border-0 last:pb-0">
+                              <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">{formatKey}</span>
+                              <span className="text-foreground">{displayValue}</span>
+                          </div>
+                      );
+                  })}
+              </div>
+          </DialogContent>
+      </Dialog>
+
     </motion.div>
   );
 }

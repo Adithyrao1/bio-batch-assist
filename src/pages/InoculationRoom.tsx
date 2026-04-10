@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { ModulePage, Column } from "@/components/ModulePage";
-import { useInoculationRoom, useDeleteInoculationRoom } from "@/hooks/useApiQueries";
+import { useInoculationRoom, useCreateInoculationRoom, useUpdateInoculationRoom, useDeleteInoculationRoom } from "@/hooks/useApiQueries";
 import { useToast } from "@/hooks/use-toast";
-import type { InoculationRoom } from "@/types/api";
+import InoculationRoomDialog from "@/components/InoculationRoomDialog";
+import type { InoculationRoom, InoculationRoomCreate } from "@/types/api";
 
 const columns: Column<InoculationRoom>[] = [
   { key: "variety_code", header: "Variety" },
@@ -16,7 +18,13 @@ const columns: Column<InoculationRoom>[] = [
 export default function InoculationRoom() {
   const { toast } = useToast();
   const { data, isLoading } = useInoculationRoom();
+  const createRecord = useCreateInoculationRoom();
+  const updateRecord = useUpdateInoculationRoom();
   const deleteRecord = useDeleteInoculationRoom();
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
+  const [selectedItem, setSelectedItem] = useState<InoculationRoom | null>(null);
 
   const handleDelete = (item: InoculationRoom) => {
     if (confirm("Are you sure you want to delete this record?")) {
@@ -27,16 +35,48 @@ export default function InoculationRoom() {
     }
   };
 
+  const handleDialogSubmit = async (formData: InoculationRoomCreate) => {
+    try {
+      if (dialogMode === "create") {
+        await createRecord.mutateAsync(formData);
+        toast({ title: "Success", description: "Inoculation record added." });
+      } else if (selectedItem) {
+        await updateRecord.mutateAsync({ id: selectedItem.id, data: formData });
+        toast({ title: "Success", description: "Record updated." });
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to save record", variant: "destructive" });
+      throw err;
+    }
+  };
+
   return (
-    <ModulePage
-      title="Inoculation Room"
-      data={data?.results ?? []}
-      columns={columns}
-      isLoading={isLoading}
-      onAddNew={() => toast({ title: "Add New", description: "Form dialog coming soon." })}
-      onView={(item) => toast({ title: "View", description: `Record from ${item.date}` })}
-      onEdit={(item) => toast({ title: "Edit", description: `Editing record from ${item.date}` })}
-      onDelete={handleDelete}
-    />
+    <>
+      <ModulePage
+        title="Inoculation Room"
+        data={data?.results ?? []}
+        columns={columns}
+        isLoading={isLoading}
+        onAddNew={() => {
+          setDialogMode("create");
+          setSelectedItem(null);
+          setIsDialogOpen(true);
+        }}
+        onEdit={(item) => {
+          setDialogMode("edit");
+          setSelectedItem(item);
+          setIsDialogOpen(true);
+        }}
+        onDelete={handleDelete}
+      />
+
+      <InoculationRoomDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        mode={dialogMode}
+        initialData={selectedItem}
+        onSubmit={handleDialogSubmit}
+      />
+    </>
   );
 }

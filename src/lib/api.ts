@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   PaginatedResponse,
   User,
   UserCreate,
@@ -124,11 +124,11 @@ export interface SignupData {
 }
 
 export const authApi = {
-  async login(username: string, password: string): Promise<LoginResponse> {
+  async login(email: string, password: string): Promise<LoginResponse> {
     const response = await fetch(`${API_BASE_URL}/auth/login/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email, password }),
       credentials: 'include',
     });
     
@@ -140,6 +140,38 @@ export const authApi = {
     const data: LoginResponse = await response.json();
     setTokens(data.access, data.refresh);
     return data;
+  },
+  
+  async requestOTP(email: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/request-otp/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to send OTP');
+    }
+    
+    return response.json();
+  },
+  
+  async verifyOTP(email: string, otp: string, firstName: string, lastName: string): Promise<{ message: string; username: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/verify-otp/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp, first_name: firstName, last_name: lastName }),
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Invalid OTP');
+    }
+    
+    return response.json();
   },
   
   async signup(data: SignupData): Promise<LoginResponse> {
@@ -190,15 +222,103 @@ export const authApi = {
     return response.json();
   },
   
-  async changePassword(oldPassword: string, newPassword: string): Promise<void> {
-    const response = await fetchWithAuth('/auth/change-password/', {
+
+  async requestSignupOTP(email: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/auth/request-otp/`, {
       method: 'POST',
-      body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+      credentials: 'include',
     });
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to change password');
+      throw new Error(error.error || 'Failed to send verification code');
     }
+  },
+
+  async verifySignupOTP(email: string, otp: string): Promise<{ email_verified: boolean; verification_token: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/verify-otp/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp }),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Invalid or expired code');
+    }
+    return response.json();
+  },
+
+  async completeSignup(data: {
+    verification_token: string;
+    first_name: string;
+    last_name: string;
+    employee_id: string;
+    mobile_number: string;
+    gender: string;
+  }): Promise<{ message: string; username: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/complete-signup/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to complete signup');
+    }
+    return response.json();
+  },
+
+  async forgotPasswordRequestOTP(email: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/forgot-password/request-otp/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to send reset code');
+    }
+    return response.json();
+  },
+
+  async forgotPasswordReset(email: string, otp: string, new_password: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/forgot-password/reset/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp, new_password }),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to reset password');
+    }
+    return response.json();
+  },
+  async requestSettingsOTP(): Promise<{ message: string }> {
+    const response = await fetchWithAuth('/auth/settings/request-otp/', {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to send authorization code');
+    }
+    return response.json();
+  },
+
+  async verifySettingsOTP(otp: string, new_password: string): Promise<{ message: string }> {
+    const response = await fetchWithAuth('/auth/settings/verify-otp/', {
+      method: 'POST',
+      body: JSON.stringify({ otp, new_password }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to verify authorization code');
+    }
+    return response.json();
   },
 
   isAuthenticated(): boolean {
@@ -318,6 +438,7 @@ export const contaminationReportsApi = createCrudApi<ContaminationReport, Contam
 export const inoculationRoomApi = createCrudApi<InoculationRoom, InoculationRoomCreate>('inoculation-room');
 export const growthRoomApi = createCrudApi<GrowthRoom, GrowthRoomCreate>('growth-room');
 export const greenhouseApi = createCrudApi<Greenhouse, GreenhouseCreate>('greenhouse');
+export const recentActivityApi = createCrudApi<RecentActivity, RecentActivityCreate>('recent-activity');
 
 // ============================================
 // DASHBOARD API
@@ -352,5 +473,7 @@ export type {
   GrowthRoomCreate,
   Greenhouse,
   GreenhouseCreate,
+  RecentActivity,
+  RecentActivityCreate,
   DashboardResponse,
 } from '@/types/api';

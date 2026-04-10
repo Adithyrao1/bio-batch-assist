@@ -74,7 +74,6 @@ export default function ContaminationMonitoring() {
         columns={columns}
         isLoading={isLoading}
         onAddNew={handleAddNew}
-        onView={(item) => toast({ title: "View", description: `Record from ${item.date_time}` })}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />

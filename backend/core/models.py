@@ -16,11 +16,20 @@ class User(AbstractUser):
         ('active', 'Active'),
         ('inactive', 'Inactive'),
     ]
-    
+    GENDER_CHOICES = [
+        ('male', 'Male'),
+        ('female', 'Female'),
+        ('other', 'Other'),
+    ]
+
     email = models.EmailField(unique=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
-    
+    profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, null=True)
+    employee_id = models.CharField(max_length=50, blank=True, null=True, unique=True)
+    mobile_number = models.CharField(max_length=15, blank=True, null=True)
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
     
@@ -235,3 +244,14 @@ class UserOTP(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+class RecentActivity(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recent_activities')
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.user.username}: {self.content[:50]}"

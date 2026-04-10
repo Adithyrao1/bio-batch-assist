@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { ModulePage, Column } from "@/components/ModulePage";
-import { useContaminationReports, useDeleteContaminationReport } from "@/hooks/useApiQueries";
+import { useContaminationReports, useCreateContaminationReport, useUpdateContaminationReport, useDeleteContaminationReport } from "@/hooks/useApiQueries";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import type { ContaminationReport } from "@/types/api";
+import ContaminationReportDialog from "@/components/ContaminationReportDialog";
+import type { ContaminationReport, ContaminationReportCreate } from "@/types/api";
 
 const columns: Column<ContaminationReport>[] = [
   { key: "variety_code", header: "Variety" },
@@ -24,7 +26,13 @@ const columns: Column<ContaminationReport>[] = [
 export default function ContaminationReports() {
   const { toast } = useToast();
   const { data, isLoading } = useContaminationReports();
+  const createRecord = useCreateContaminationReport();
+  const updateRecord = useUpdateContaminationReport();
   const deleteRecord = useDeleteContaminationReport();
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
+  const [selectedItem, setSelectedItem] = useState<ContaminationReport | null>(null);
 
   const handleDelete = (item: ContaminationReport) => {
     if (confirm("Are you sure you want to delete this report?")) {
@@ -35,16 +43,47 @@ export default function ContaminationReports() {
     }
   };
 
+  const handleDialogSubmit = async (formData: ContaminationReportCreate) => {
+    try {
+      if (dialogMode === "create") {
+        await createRecord.mutateAsync(formData);
+        toast({ title: "Success", description: "Report added." });
+      } else if (selectedItem) {
+        await updateRecord.mutateAsync({ id: selectedItem.id, data: formData });
+        toast({ title: "Success", description: "Report updated." });
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to save report", variant: "destructive" });
+      throw err;
+    }
+  };
+
   return (
-    <ModulePage
-      title="Contamination Reports"
-      data={data?.results ?? []}
-      columns={columns}
-      isLoading={isLoading}
-      onAddNew={() => toast({ title: "Add New", description: "Form dialog coming soon." })}
-      onView={(item) => toast({ title: "View", description: `Report for ${item.variety_code}` })}
-      onEdit={(item) => toast({ title: "Edit", description: `Editing report for ${item.variety_code}` })}
-      onDelete={handleDelete}
-    />
+    <>
+      <ModulePage
+        title="Contamination Reports"
+        data={data?.results ?? []}
+        columns={columns}
+        isLoading={isLoading}
+        onAddNew={() => {
+          setDialogMode("create");
+          setSelectedItem(null);
+          setIsDialogOpen(true);
+        }}
+        onEdit={(item) => {
+          setDialogMode("edit");
+          setSelectedItem(item);
+          setIsDialogOpen(true);
+        }}
+        onDelete={handleDelete}
+      />
+      <ContaminationReportDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        mode={dialogMode}
+        initialData={selectedItem}
+        onSubmit={handleDialogSubmit}
+      />
+    </>
   );
 }
