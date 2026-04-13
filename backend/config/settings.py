@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -196,3 +197,45 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'adithyananuvala001@gmail.com'  # Your Gmail address
 EMAIL_HOST_PASSWORD = 'ghsh xprq kryx kxta'  # Your Gmail App Password
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# ── Celery ────────────────────────────────────────────────────────────────────
+CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
+CELERY_TASK_TRACK_STARTED = True  # lets Flower show "started" state
+
+# ── Redis cache (replaces Django's default per-process in-memory cache) ───────
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.environ.get("REDIS_CACHE_URL", "redis://localhost:6379/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+        "TIMEOUT": 300,  # default 5-minute TTL
+    }
+}
+
+# ── Celery Beat — scheduled tasks ─────────────────────────────────────────────
+from celery.schedules import crontab  # noqa: E402
+
+CELERY_BEAT_SCHEDULE = {
+    # Deletes expired UserOTP rows every hour
+    "cleanup-expired-otps": {
+        "task": "core.tasks.cleanup_expired_otps",
+        "schedule": crontab(minute=0),
+    },
+    # Emails admin users a digest of chemicals expiring in ≤30 days, daily at 8am UTC
+    "chemical-expiry-digest": {
+        "task": "core.tasks.send_chemical_expiry_digest",
+        "schedule": crontab(hour=8, minute=0),
+    },
+    # Emails admin a full weekly lab performance digest every Monday at 7am UTC
+    "weekly-lab-digest": {
+        "task": "core.tasks.send_weekly_lab_digest",
+        "schedule": crontab(hour=7, minute=0, day_of_week=1),
+    },
+}

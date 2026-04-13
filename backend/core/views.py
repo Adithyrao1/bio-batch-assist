@@ -232,50 +232,9 @@ class RequestOTPView(APIView):
             expires_at=expires_at
         )
 
-        subject = 'Your DCM LabNest Signup Code'
-        text_content = f'Welcome! Your signup verification code is: {otp_code}'
-        
-        html_content = f"""
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f4ff; border-radius: 16px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #1a1035; margin-bottom: 5px;">DCM LabNest</h1>
-                <p style="color: #6b7280; margin-top: 0; font-size: 14px;">Secure Identity Verification</p>
-            </div>
-            
-            <div style="background-color: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(124, 58, 237, 0.05); border: 1px solid rgba(124, 58, 237, 0.1);">
-                <h2 style="color: #1a1035; margin-top: 0; font-size: 20px;">Your Verification Code</h2>
-                <p style="color: #4b5563; line-height: 1.5; margin-bottom: 25px;">
-                    Please enter the following 6-digit code to continue your registration. This code will expire in 10 minutes.
-                </p>
-                
-                <div style="text-align: center; margin: 30px 0;">
-                    <div style="background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(79, 70, 229, 0.1)); padding: 20px; border-radius: 12px; display: inline-block; border: 1px solid rgba(124, 58, 237, 0.2);">
-                        <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #7c3aed;">{otp_code}</span>
-                    </div>
-                </div>
-                
-                <p style="color: #6b7280; font-size: 13px; text-align: center; margin-bottom: 0;">
-                    If you didn't request this code, you can safely ignore this email.
-                </p>
-            </div>
-            
-            <div style="text-align: center; margin-top: 20px;">
-                <p style="color: #9ca3af; font-size: 12px;">© 2026 DCM Shriram Ltd. All rights reserved.</p>
-            </div>
-        </div>
-        """
-        
-        try:
-            from django.core.mail import EmailMultiAlternatives
-            msg = EmailMultiAlternatives(subject, text_content, settings.EMAIL_HOST_USER, [email])
-            msg.attach_alternative(html_content, "text/html")
-            msg.send(fail_silently=False)
-            return Response({'message': 'OTP sent successfully'})
-        except Exception as e:
-            return Response(
-                {'error': f'Failed to send email: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        from .tasks import send_signup_otp_email
+        send_signup_otp_email.delay(email, otp_code)
+        return Response({'message': 'OTP sent successfully'})
 
 
 class VerifyOTPView(APIView):
@@ -385,68 +344,11 @@ class CompleteSignupView(APIView):
 
         full_name = f"{first_name} {last_name}".strip() or username
 
-        user_subject = 'Welcome to DCM LabNest: Your Login Credentials'
-        user_text = (
-            f'Welcome {full_name},\n\n'
-            f'Your account has been created.\n'
-            f'Username: {username}\n'
-            f'Temporary Password: {temp_password}\n\n'
-            f'Please log in and change your password immediately.'
+        from .tasks import send_signup_complete_emails
+        send_signup_complete_emails.delay(
+            email, username, full_name, first_name,
+            temp_password, employee_id, mobile_number, gender,
         )
-        user_html = f"""
-        <div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;max-width:600px;margin:0 auto;padding:20px;background-color:#f5f4ff;border-radius:16px;">
-            <div style="text-align:center;margin-bottom:30px;">
-                <h1 style="color:#1a1035;margin-bottom:5px;">DCM LabNest</h1>
-                <p style="color:#6b7280;margin-top:0;font-size:14px;">Account Created Successfully</p>
-            </div>
-            <div style="background-color:#ffffff;padding:30px;border-radius:12px;box-shadow:0 4px 6px rgba(124,58,237,0.05);border:1px solid rgba(124,58,237,0.1);">
-                <h2 style="color:#1a1035;margin-top:0;font-size:20px;">Welcome, {first_name}!</h2>
-                <p style="color:#4b5563;line-height:1.5;margin-bottom:15px;">Your account has been successfully created. Here are your temporary login credentials:</p>
-                <div style="background-color:#f8fafc;padding:15px;border-radius:8px;border-left:4px solid #7c3aed;margin-bottom:25px;">
-                    <p style="margin:0;color:#4b5563;"><strong>Email:</strong> {email}</p>
-                    <p style="margin:8px 0 0 0;color:#4b5563;"><strong>Username:</strong> {username}</p>
-                    <p style="margin:8px 0 0 0;color:#4b5563;"><strong>Temporary Password:</strong>
-                        <span style="font-family:monospace;font-size:16px;font-weight:bold;color:#7c3aed;">{temp_password}</span>
-                    </p>
-                </div>
-                <p style="color:#ef4444;font-size:13px;font-weight:500;margin-bottom:0;">
-                    Important: For your security, please change your password immediately after logging in.
-                </p>
-            </div>
-        </div>
-        """
-
-        admin_email = 'adithyananuvala001@gmail.com'
-        admin_subject = f'New User Registration: {full_name}'
-        admin_text = f'New user {full_name} ({email}) signed up. Username: {username}. Temp password: {temp_password}'
-        admin_html = f"""
-        <div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;max-width:600px;margin:0 auto;padding:20px;background-color:#f8fafc;border-radius:16px;">
-            <div style="background-color:#ffffff;padding:20px;border-radius:12px;border:1px solid #e2e8f0;">
-                <h2 style="color:#0f172a;margin-top:0;font-size:18px;">New User Registration</h2>
-                <p style="color:#475569;margin-bottom:8px;"><strong>Name:</strong> {full_name}</p>
-                <p style="color:#475569;margin-bottom:8px;"><strong>Email:</strong> {email}</p>
-                <p style="color:#475569;margin-bottom:8px;"><strong>Username:</strong> {username}</p>
-                <p style="color:#475569;margin-bottom:8px;"><strong>Employee ID:</strong> {employee_id or 'N/A'}</p>
-                <p style="color:#475569;margin-bottom:8px;"><strong>Mobile:</strong> {mobile_number or 'N/A'}</p>
-                <p style="color:#475569;margin-bottom:8px;"><strong>Gender:</strong> {gender or 'N/A'}</p>
-                <p style="color:#475569;margin-bottom:0;"><strong>Generated Password:</strong>
-                    <span style="font-family:monospace;padding:2px 6px;background:#f1f5f9;border-radius:4px;">{temp_password}</span>
-                </p>
-            </div>
-        </div>
-        """
-
-        from django.core.mail import EmailMultiAlternatives
-        try:
-            user_msg = EmailMultiAlternatives(user_subject, user_text, settings.EMAIL_HOST_USER, [email])
-            user_msg.attach_alternative(user_html, "text/html")
-            user_msg.send(fail_silently=False)
-
-            admin_msg = EmailMultiAlternatives(admin_subject, admin_text, settings.EMAIL_HOST_USER, [admin_email])
-            admin_msg.attach_alternative(admin_html, "text/html")
-            admin_msg.send(fail_silently=True)
-        except Exception:
-            pass
 
         return Response({
             'message': 'Account created successfully. Your login credentials have been sent to your email.',
@@ -481,42 +383,10 @@ class ForgotPasswordRequestView(APIView):
         UserOTP.objects.filter(email=email, is_used=False).update(is_used=True)
         UserOTP.objects.create(email=email, otp=otp_code, expires_at=expires_at)
 
-        subject = 'DCM LabNest: Password Reset Code'
-        text_content = (
-            f'Hello {user.first_name or user.username}, '
-            f'your password reset code is: {otp_code}. '
-            f'It expires in 10 minutes.'
-        )
-        html_content = f"""
-        <div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;max-width:600px;margin:0 auto;padding:20px;background-color:#f5f4ff;border-radius:16px;">
-            <div style="text-align:center;margin-bottom:30px;">
-                <h1 style="color:#1a1035;margin-bottom:5px;">DCM LabNest</h1>
-                <p style="color:#6b7280;margin-top:0;font-size:14px;">Password Reset Request</p>
-            </div>
-            <div style="background-color:#ffffff;padding:30px;border-radius:12px;box-shadow:0 4px 6px rgba(124,58,237,0.05);border:1px solid rgba(124,58,237,0.1);">
-                <h2 style="color:#1a1035;margin-top:0;font-size:20px;">Reset Your Password</h2>
-                <p style="color:#4b5563;line-height:1.5;margin-bottom:25px;">
-                    We received a request to reset the password for your account. Use the code below:
-                </p>
-                <div style="text-align:center;margin:30px 0;">
-                    <div style="background:linear-gradient(135deg,rgba(124,58,237,0.1),rgba(79,70,229,0.1));padding:20px;border-radius:12px;display:inline-block;border:1px solid rgba(124,58,237,0.2);">
-                        <span style="font-size:32px;font-weight:800;letter-spacing:8px;color:#7c3aed;">{otp_code}</span>
-                    </div>
-                </div>
-                <p style="color:#6b7280;font-size:13px;text-align:center;margin-bottom:8px;">This code expires in 10 minutes.</p>
-                <p style="color:#ef4444;font-size:13px;text-align:center;margin-bottom:0;">If you did not request this, please ignore this email.</p>
-            </div>
-        </div>
-        """
-
-        try:
-            from django.core.mail import EmailMultiAlternatives
-            msg = EmailMultiAlternatives(subject, text_content, settings.EMAIL_HOST_USER, [email])
-            msg.attach_alternative(html_content, "text/html")
-            msg.send(fail_silently=False)
-            return Response({'message': 'Password reset code sent to your email'})
-        except Exception as e:
-            return Response({'error': f'Failed to send email: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        from .tasks import send_forgot_password_otp
+        display_name = user.first_name or user.username
+        send_forgot_password_otp.delay(email, otp_code, display_name)
+        return Response({'message': 'Password reset code sent to your email'})
 
 
 class ForgotPasswordResetView(APIView):
@@ -597,43 +467,9 @@ class AuthSettingsOTPRequestView(APIView):
 
         UserOTP.objects.create(email=email, otp=otp_code, expires_at=expires_at)
 
-        subject = 'Security Alert: Password Change Request'
-        text_content = f'Hello {user.first_name}, your password change verification code is: {otp_code}'
-        
-        html_content = f"""
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f4ff; border-radius: 16px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #1a1035; margin-bottom: 5px;">DCM LabNest</h1>
-                <p style="color: #6b7280; margin-top: 0; font-size: 14px;">Account Security Settings</p>
-            </div>
-            
-            <div style="background-color: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(124, 58, 237, 0.05); border: 1px solid rgba(124, 58, 237, 0.1);">
-                <h2 style="color: #1a1035; margin-top: 0; font-size: 20px;">Password Change Authorization</h2>
-                <p style="color: #4b5563; line-height: 1.5; margin-bottom: 25px;">
-                    We received a request to change your account password. Please use the following code to authorize this change:
-                </p>
-                
-                <div style="text-align: center; margin: 30px 0;">
-                    <div style="background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(79, 70, 229, 0.1)); padding: 20px; border-radius: 12px; display: inline-block; border: 1px solid rgba(124, 58, 237, 0.2);">
-                        <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #7c3aed;">{otp_code}</span>
-                    </div>
-                </div>
-                
-                <p style="color: #ef4444; font-size: 13px; text-align: center; margin-bottom: 0;">
-                    If you did not request this change, please ignore this email. Your password will remain secure.
-                </p>
-            </div>
-        </div>
-        """
-        
-        try:
-            from django.core.mail import EmailMultiAlternatives
-            msg = EmailMultiAlternatives(subject, text_content, settings.EMAIL_HOST_USER, [email])
-            msg.attach_alternative(html_content, "text/html")
-            msg.send(fail_silently=False)
-            return Response({'message': 'Authorization code sent to your email'})
-        except Exception as e:
-            return Response({'error': f'Failed to send email: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        from .tasks import send_settings_otp_email
+        send_settings_otp_email.delay(email, user.first_name, otp_code)
+        return Response({'message': 'Authorization code sent to your email'})
 
 
 class AuthSettingsOTPVerifyView(APIView):
@@ -702,9 +538,7 @@ class IsAdminOrReadOnly(permissions.BasePermission):
         return request.user.is_authenticated and request.user.role == 'admin'
 
 
-# ============================================
-# USER VIEWSET
-# ============================================
+
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     permission_classes = [IsAdminUser]
@@ -714,10 +548,6 @@ class UserViewSet(viewsets.ModelViewSet):
             return UserCreateSerializer
         return UserSerializer
 
-
-# ============================================
-# MASTER DATA VIEWSETS
-# ============================================
 class AreaViewSet(viewsets.ModelViewSet):
     queryset = Area.objects.all()
     serializer_class = AreaSerializer
