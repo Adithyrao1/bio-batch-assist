@@ -446,6 +446,23 @@ export const greenhouseApi = createCrudApi<Greenhouse, GreenhouseCreate>('greenh
 export const recentActivityApi = createCrudApi<RecentActivity, RecentActivityCreate>('recent-activity');
 
 // ============================================
+// TASKS API (admin only)
+// ============================================
+export const tasksApi = {
+  async triggerWeeklyDigest(): Promise<string> {
+    const response = await fetchWithAuth('/tasks/trigger-weekly-digest/', { method: 'POST' });
+    const data = await handleResponse<{ detail: string }>(response);
+    return data.detail;
+  },
+
+  async triggerChemicalExpiryDigest(): Promise<string> {
+    const response = await fetchWithAuth('/tasks/trigger-chemical-expiry-digest/', { method: 'POST' });
+    const data = await handleResponse<{ detail: string }>(response);
+    return data.detail;
+  },
+};
+
+// ============================================
 // DASHBOARD API
 // ============================================
 export const dashboardApi = {

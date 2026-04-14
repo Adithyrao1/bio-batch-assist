@@ -712,6 +712,28 @@ class ChemicalUsageLogViewSet(viewsets.ReadOnlyModelViewSet):
 # ============================================
 # DASHBOARD API
 # ============================================
+class TriggerWeeklyDigestView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        from core.tasks import send_weekly_lab_digest
+        result = send_weekly_lab_digest.apply()
+        if result.status == 'SUCCESS':
+            return Response({'detail': result.result}, status=status.HTTP_200_OK)
+        return Response({'detail': str(result.result)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class TriggerChemicalExpiryDigestView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        from core.tasks import send_chemical_expiry_digest
+        result = send_chemical_expiry_digest.apply()
+        if result.status == 'SUCCESS':
+            return Response({'detail': result.result}, status=status.HTTP_200_OK)
+        return Response({'detail': str(result.result)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class DashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
@@ -760,4 +782,70 @@ class DashboardView(APIView):
             'production_trend': list(production_trend),
             'variety_distribution': list(variety_distribution),
         })
+
+
+# ============================================
+# DEEPSEEK CHATBOT VIEW
+# ============================================
+_LAB_SYSTEM_PROMPT = (
+    "You are a helpful lab assistant for DCM LabNest, a sugarcane tissue culture data management "
+    "system used by DCM Shriram. The system tracks: media preparation batches (MS, B5, White's, N6 "
+    "media), inoculation room sessions, growth room culture inventories, greenhouse hardening "
+    "operations, contamination monitoring, chemical inventory, and production analytics. "
+    "Answer questions concisely and professionally. When discussing lab procedures, be accurate "
+    "and safety-conscious. If asked something unrelated to the lab or general science, you may "
+    "still help but note it is outside your primary scope."
+)
+
+
+class ChatView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from openai import OpenAI
+
+        message = (request.data.get('message') or '').strip()
+        if not message:
+            return Response({'error': 'message is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        history_raw = request.data.get('history', [])
+
+        api_key = settings.DEEPSEEK_API_KEY
+        if not api_key or api_key == 'YOUR_DEEPSEEK_API_KEY_HERE':
+            return Response(
+                {'error': 'DeepSeek API key is not configured. Set DEEPSEEK_API_KEY in settings.py.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        try:
+            client = OpenAI(
+                api_key=api_key,
+                base_url='https://api.deepseek.com/v1',
+            )
+
+            # Build messages: system prompt + history + current user message
+            # Map frontend role 'model' → OpenAI role 'assistant'
+            messages = [{'role': 'system', 'content': _LAB_SYSTEM_PROMPT}]
+            for entry in history_raw:
+                role = entry.get('role', '')
+                content = entry.get('content', '')
+                if role == 'model':
+                    role = 'assistant'
+                if role in ('user', 'assistant') and content:
+                    messages.append({'role': role, 'content': content})
+            messages.append({'role': 'user', 'content': message})
+
+            completion = client.chat.completions.create(
+                model=settings.DEEPSEEK_MODEL,
+                messages=messages,
+                max_tokens=10,
+            )
+            reply = completion.choices[0].message.content
+            return Response({'reply': reply})
+
+        except Exception as exc:
+            return Response(
+                {'error': f'DeepSeek API error: {str(exc)}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
 

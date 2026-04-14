@@ -239,3 +239,7 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(hour=7, minute=0, day_of_week=1),
     },
 }
+
+# ── DeepSeek AI ──────────────────────────────────────────────────────────────
+DEEPSEEK_API_KEY = 'sk-598f8966bb264485a3198c50c4f6f967'  # Replace with your actual key
+DEEPSEEK_MODEL   = 'deepseek-chat'
