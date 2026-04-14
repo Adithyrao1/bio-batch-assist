@@ -29,6 +29,8 @@ router.register(r'chemical-usage-logs', views.ChemicalUsageLogViewSet, basename=
 urlpatterns = [
     path('', include(router.urls)),
     path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
+    path('tasks/trigger-weekly-digest/', views.TriggerWeeklyDigestView.as_view(), name='trigger_weekly_digest'),
+    path('tasks/trigger-chemical-expiry-digest/', views.TriggerChemicalExpiryDigestView.as_view(), name='trigger_chemical_expiry_digest'),
     
     # Auth endpoints
     path('auth/login/', views.LoginView.as_view(), name='login'),
@@ -44,4 +46,7 @@ urlpatterns = [
     path('auth/complete-signup/', views.CompleteSignupView.as_view(), name='complete_signup'),
     path('auth/forgot-password/request-otp/', views.ForgotPasswordRequestView.as_view(), name='forgot_password_request'),
     path('auth/forgot-password/reset/', views.ForgotPasswordResetView.as_view(), name='forgot_password_reset'),
+
+    # Gemini chatbot
+    path('chat/', views.ChatView.as_view(), name='chat'),
 ]

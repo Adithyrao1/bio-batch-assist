@@ -18,6 +18,7 @@ import {
 } from "recharts";
 import { useDashboard, useRecentActivities, useCreateRecentActivity } from "@/hooks/useApiQueries";
 import { useToast } from "@/hooks/use-toast";
+import ChatWidget from "@/components/ChatWidget";
 
 // â”€â”€â”€ Design tokens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CHART_COLORS = ["#8b5cf6", "#06b6d4", "#10b981", "#f59e0b", "#f43f5e"];
@@ -283,6 +284,7 @@ export default function Dashboard() {
   }, [dashboardData]);
 
   return (
+    <>
     <div className="p-6 space-y-6">
 
       {/* â”€â”€ Hero â”€â”€ */}
@@ -616,5 +618,8 @@ export default function Dashboard() {
       </div>
 
     </div>
+
+    <ChatWidget />
+    </>
   );
 }

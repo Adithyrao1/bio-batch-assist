@@ -2,10 +2,12 @@ import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Loader2, MapPin, Leaf, FlaskConical, AlertCircle, TestTube2, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, MapPin, Leaf, FlaskConical, AlertCircle, TestTube2, ChevronDown, ChevronRight, FlaskRound, CalendarCheck } from "lucide-react";
 import { mockAreas, mockVarieties, mockMediaTypes, mockFindings } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
+import { tasksApi } from "@/lib/api";
 import {
   useMediaChemicalRequirements,
   useDeleteMediaChemicalRequirement,
@@ -164,7 +166,34 @@ export default function MasterData() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [initialMediaTypeId, setInitialMediaTypeId] = useState<number | null>(null);
   const [expandedMedia, setExpandedMedia] = useState<Set<number>>(new Set());
+  const [weeklyLoading, setWeeklyLoading] = useState(false);
+  const [chemicalLoading, setChemicalLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  async function handleTriggerWeeklyDigest() {
+    setWeeklyLoading(true);
+    try {
+      const msg = await tasksApi.triggerWeeklyDigest();
+      toast({ title: "Weekly Digest Sent", description: msg });
+    } catch {
+      toast({ title: "Failed", description: "Could not send weekly digest.", variant: "destructive" });
+    } finally {
+      setWeeklyLoading(false);
+    }
+  }
+
+  async function handleTriggerChemicalExpiryDigest() {
+    setChemicalLoading(true);
+    try {
+      const msg = await tasksApi.triggerChemicalExpiryDigest();
+      toast({ title: "Chemical Expiry Digest Sent", description: msg });
+    } catch {
+      toast({ title: "Failed", description: "Could not send chemical expiry digest.", variant: "destructive" });
+    } finally {
+      setChemicalLoading(false);
+    }
+  }
 
   const { data: requirementsData, isLoading: reqLoading } = useMediaChemicalRequirements({ page_size: 1000 });
   const { data: mediaTypesData } = useMediaTypes({ page_size: 1000 });
@@ -388,6 +417,55 @@ export default function MasterData() {
         chemicals={chemicals}
         initialMediaTypeId={initialMediaTypeId}
       />
+
+      {user?.role === "admin" && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: 0.1 }}
+          className="rounded-2xl border border-border/60 bg-card/60 backdrop-blur shadow-sm p-5 space-y-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted/60 border border-border/40">
+              <CalendarCheck className="h-4.5 w-4.5 text-indigo-400" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold">Admin — Trigger Digests</h2>
+              <p className="text-xs text-muted-foreground">Manually send email digest reports</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={weeklyLoading}
+              onClick={handleTriggerWeeklyDigest}
+              className="gap-2 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300"
+            >
+              {weeklyLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CalendarCheck className="h-3.5 w-3.5" />
+              )}
+              Send Weekly Lab Digest
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={chemicalLoading}
+              onClick={handleTriggerChemicalExpiryDigest}
+              className="gap-2 border-amber-500/30 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300"
+            >
+              {chemicalLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <FlaskRound className="h-3.5 w-3.5" />
+              )}
+              Send Chemical Expiry Digest
+            </Button>
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 }
