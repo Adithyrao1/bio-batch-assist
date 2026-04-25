@@ -47,6 +47,6 @@ urlpatterns = [
     path('auth/forgot-password/request-otp/', views.ForgotPasswordRequestView.as_view(), name='forgot_password_request'),
     path('auth/forgot-password/reset/', views.ForgotPasswordResetView.as_view(), name='forgot_password_reset'),
 
-    # Gemini chatbot
-    path('chat/', views.ChatView.as_view(), name='chat'),
+    # AI Assistant (LangChain + DeepSeek + MySQL)
+    path('ai-assistant/', views.AIAssistantView.as_view(), name='ai_assistant'),
 ]

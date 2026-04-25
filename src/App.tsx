@@ -21,6 +21,7 @@ import Greenhouse from "./pages/Greenhouse";
 import MasterData from "./pages/MasterData";
 import UsersPage from "./pages/UsersPage";
 import NotFound from "./pages/NotFound";
+import AIAssistant from "./pages/AIAssistant";
 
 import Settings from "./pages/Settings";
 
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="/master-data" element={<ProtectedRoute adminOnly><MasterData /></ProtectedRoute>} />
             <Route path="/users" element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/ai-assistant" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

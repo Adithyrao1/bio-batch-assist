@@ -1,4 +1,4 @@
-﻿from rest_framework import viewsets, status, permissions
+from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -785,67 +785,82 @@ class DashboardView(APIView):
 
 
 # ============================================
-# DEEPSEEK CHATBOT VIEW
+# AI ASSISTANT VIEW (LangChain + DeepSeek + MySQL)
 # ============================================
-_LAB_SYSTEM_PROMPT = (
-    "You are a helpful lab assistant for DCM LabNest, a sugarcane tissue culture data management "
-    "system used by DCM Shriram. The system tracks: media preparation batches (MS, B5, White's, N6 "
-    "media), inoculation room sessions, growth room culture inventories, greenhouse hardening "
-    "operations, contamination monitoring, chemical inventory, and production analytics. "
-    "Answer questions concisely and professionally. When discussing lab procedures, be accurate "
-    "and safety-conscious. If asked something unrelated to the lab or general science, you may "
-    "still help but note it is outside your primary scope."
-)
-
-
-class ChatView(APIView):
+class AIAssistantView(APIView):
+    """
+    POST /api/ai-assistant/
+    Body: {"message": "natural language question"}
+    Uses LangChain SQLDatabaseChain with DeepSeek to answer questions
+    about the bio_batch_assist database in natural language.
+    """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        from openai import OpenAI
+        from langchain_community.utilities import SQLDatabase
+        from langchain_experimental.sql import SQLDatabaseChain
+        from langchain_openai import ChatOpenAI
+        from langchain_core.prompts import PromptTemplate
+        from django.db import connection
 
         message = (request.data.get('message') or '').strip()
         if not message:
             return Response({'error': 'message is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        history_raw = request.data.get('history', [])
-
         api_key = settings.DEEPSEEK_API_KEY
         if not api_key or api_key == 'YOUR_DEEPSEEK_API_KEY_HERE':
             return Response(
-                {'error': 'DeepSeek API key is not configured. Set DEEPSEEK_API_KEY in settings.py.'},
+                {'error': 'DeepSeek API key is not configured.'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
         try:
-            client = OpenAI(
-                api_key=api_key,
-                base_url='https://api.deepseek.com/v1',
-            )
+            db_settings = settings.DATABASES['default']
+            db_user = db_settings.get('USER', 'root')
+            db_password = db_settings.get('PASSWORD', '')
+            db_host = db_settings.get('HOST', '127.0.0.1')
+            db_port = db_settings.get('PORT', '3306')
+            db_name = db_settings.get('NAME', 'bio_batch_assist')
 
-            # Build messages: system prompt + history + current user message
-            # Map frontend role 'model' → OpenAI role 'assistant'
-            messages = [{'role': 'system', 'content': _LAB_SYSTEM_PROMPT}]
-            for entry in history_raw:
-                role = entry.get('role', '')
-                content = entry.get('content', '')
-                if role == 'model':
-                    role = 'assistant'
-                if role in ('user', 'assistant') and content:
-                    messages.append({'role': role, 'content': content})
-            messages.append({'role': 'user', 'content': message})
+            db_uri = f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
-            completion = client.chat.completions.create(
+            db = SQLDatabase.from_uri(db_uri)
+
+            llm = ChatOpenAI(
                 model=settings.DEEPSEEK_MODEL,
-                messages=messages,
-                max_tokens=10,
+                openai_api_key=api_key,
+                openai_api_base='https://api.deepseek.com',
+                temperature=0,
             )
-            reply = completion.choices[0].message.content
+
+            prompt_template = """You are a expert data analyst for DCM LabNest, a sugarcane tissue culture lab management system.
+Given an input question, create a syntactically correct MySQL query, run it, and return a clear answer.
+Do NOT wrap SQL in markdown code blocks. Write plain SQL only.
+Be concise—give the answer directly, not just raw data.
+
+Only use the following tables:\n{table_info}
+
+Question: {input}"""
+
+            PROMPT = PromptTemplate(
+                input_variables=["input", "table_info"],
+                template=prompt_template
+            )
+
+            db_chain = SQLDatabaseChain.from_llm(
+                llm,
+                db,
+                prompt=PROMPT,
+                verbose=False,
+            )
+
+            result = db_chain.invoke({"query": message})
+            reply = result.get('result', 'No result returned.')
             return Response({'reply': reply})
 
         except Exception as exc:
             return Response(
-                {'error': f'DeepSeek API error: {str(exc)}'},
+                {'error': f'AI Assistant error: {str(exc)}'},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 
