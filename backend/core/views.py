@@ -87,6 +87,109 @@ class LoginView(APIView):
         })
 
 
+class EntraLoginView(APIView):
+    """
+    POST /api/auth/entra-login/
+    Body: {"id_token": "ey..."}
+    Returns: access token, refresh token, and user info (provisions user if new)
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        import base64
+        import json
+        
+        id_token = request.data.get('id_token')
+        if not id_token:
+            return Response({'error': 'id_token is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Simple decoding of the JWT payload
+            parts = id_token.split('.')
+            if len(parts) != 3:
+                return Response({'error': 'Invalid id_token format'}, status=status.HTTP_400_BAD_REQUEST)
+                
+            padding = (4 - len(parts[1]) % 4) % 4
+            payload_padded = parts[1] + '=' * padding
+            payload_json = base64.urlsafe_b64decode(payload_padded).decode('utf-8')
+            payload = json.loads(payload_json)
+            
+            # Print the payload to the Django console for debugging
+            print("\n=== MSAL TOKEN PAYLOAD ===")
+            print(json.dumps(payload, indent=2))
+            print("==========================\n")
+            
+        except Exception as e:
+            return Response({'error': 'Failed to decode id_token'}, status=status.HTTP_400_BAD_REQUEST)
+
+        email = payload.get('preferred_username') or payload.get('email')
+        if not email:
+            return Response({'error': 'No email found in id_token'}, status=status.HTTP_400_BAD_REQUEST)
+
+        email = email.lower()
+        name = payload.get('name', '')
+        
+        name_parts = name.split(' ', 1)
+        first_name = name_parts[0] if name_parts else ''
+        last_name = name_parts[1] if len(name_parts) > 1 else ''
+
+        # Map Azure App Roles to our local roles
+        # Convert all incoming roles to lowercase to handle "Admin" vs "admin" mismatches
+        entra_roles = [str(r).lower() for r in payload.get('roles', [])]
+        assigned_role = 'viewer'  # Default fallback
+        
+        # Priority mapping (if a user has multiple roles, give them the highest privilege)
+        if 'admin' in entra_roles:
+            assigned_role = 'admin'
+        elif 'technician' in entra_roles:
+            assigned_role = 'technician'
+        elif 'viewer' in entra_roles:
+            assigned_role = 'viewer'
+
+        # Seamless provisioning
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={
+                'username': email.split('@')[0],
+                'first_name': first_name,
+                'last_name': last_name,
+                'role': assigned_role,
+                'status': 'active',
+            }
+        )
+        
+        if created:
+            user.set_unusable_password()
+            user.save()
+        else:
+            # Sync the role if it was updated in Azure Entra ID
+            if user.role != assigned_role:
+                user.role = assigned_role
+                user.save(update_fields=['role'])
+
+        if user.status != 'active':
+            return Response(
+                {'error': 'Account is inactive. Contact administrator.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Generate JWT tokens
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email,
+                'role': user.role,
+            }
+        })
+
+
 class SignupView(APIView):
     """
     POST /api/auth/signup/

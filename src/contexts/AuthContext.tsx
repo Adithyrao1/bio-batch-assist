@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useMsal } from "@azure/msal-react";
 import { authApi, LoginResponse } from "@/lib/api";
+import { loginRequest } from "@/lib/authConfig";
 
 export type UserRole = "admin" | "technician" | "viewer";
 
@@ -37,6 +39,45 @@ function transformUser(apiUser: LoginResponse['user']): User {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { instance, inProgress } = useMsal();
+
+  // Handle MSAL redirect and token exchange
+  useEffect(() => {
+    const handleRedirect = async () => {
+      try {
+        const response = await instance.handleRedirectPromise();
+        if (response && response.idToken) {
+          setIsLoading(true);
+          const apiResponse = await authApi.entraLogin(response.idToken);
+          const transformedUser = transformUser(apiResponse.user);
+          authApi.setStoredUser(apiResponse.user);
+          setUser(transformedUser);
+        } else if (instance.getAllAccounts().length > 0 && !authApi.isAuthenticated()) {
+          setIsLoading(true);
+          const account = instance.getAllAccounts()[0];
+          try {
+            const tokenResponse = await instance.acquireTokenSilent({
+              ...loginRequest,
+              account,
+            });
+            const apiResponse = await authApi.entraLogin(tokenResponse.idToken);
+            const transformedUser = transformUser(apiResponse.user);
+            authApi.setStoredUser(apiResponse.user);
+            setUser(transformedUser);
+          } catch (silentError) {
+            console.error("Silent token acquisition failed:", silentError);
+          }
+        }
+      } catch (error) {
+        console.error("MSAL redirect error:", error);
+      } finally {
+        if (inProgress === "none") {
+          setIsLoading(false);
+        }
+      }
+    };
+    handleRedirect();
+  }, [instance, inProgress]);
 
   // Auto-logout when JWT refresh fails in any API call
   useEffect(() => {
@@ -54,8 +95,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (storedUser && authApi.isAuthenticated()) {
       setUser(transformUser(storedUser));
     }
-    setIsLoading(false);
-  }, []);
+    if (inProgress === "none") {
+      setIsLoading(false);
+    }
+  }, [inProgress]);
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {

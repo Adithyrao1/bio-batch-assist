@@ -34,6 +34,7 @@ urlpatterns = [
     
     # Auth endpoints
     path('auth/login/', views.LoginView.as_view(), name='login'),
+    path('auth/entra-login/', views.EntraLoginView.as_view(), name='entra_login'),
     path('auth/signup/', views.SignupView.as_view(), name='signup'),
     path('auth/logout/', views.LogoutView.as_view(), name='logout'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   PaginatedResponse,
   User,
   UserCreate,
@@ -132,6 +132,24 @@ export const authApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Login failed');
+    }
+    
+    const data: LoginResponse = await response.json();
+    setTokens(data.access, data.refresh);
+    return data;
+  },
+
+  async entraLogin(idToken: string): Promise<LoginResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/entra-login/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id_token: idToken }),
       credentials: 'include',
     });
     
