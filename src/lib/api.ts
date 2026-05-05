@@ -24,6 +24,10 @@ import type {
   Greenhouse,
   GreenhouseCreate,
   DashboardResponse,
+  StockSolution,
+  StockSolutionCreate,
+  StockSolutionPreparation,
+  StockSolutionPreparationCreate,
 } from '@/types/api';
 
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
@@ -453,7 +457,9 @@ export const chemicalsApi = {
   },
 };
 
-export const mediaPreparationApi = createCrudApi<MediaPreparation, MediaPreparationCreate>('media-preparation');
+export const mediaPreparationsApi = createCrudApi<MediaPreparation, MediaPreparationCreate>('media-preparation');
+export const stockSolutionsApi = createCrudApi<StockSolution, StockSolutionCreate>('stock-solutions');
+export const stockPreparationsApi = createCrudApi<StockSolutionPreparation, StockSolutionPreparationCreate>('stock-preparations');
 export const mediaChemicalRequirementsApi = createCrudApi<MediaChemicalRequirement, MediaChemicalRequirementCreate>('media-chemical-requirements');
 export const chemicalUsageLogsApi = createCrudApi<ChemicalUsageLog>('chemical-usage-logs');
 export const contaminationMonitoringApi = createCrudApi<ContaminationMonitoring, ContaminationMonitoringCreate>('contamination-monitoring');

@@ -18,8 +18,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle } from "lucide-react";
-import { useMediaTypes, useMediaChemicalRequirementsByMediaType, useChemicals } from "@/hooks/useApiQueries";
+import { AlertTriangle, Plus, Trash2 } from "lucide-react";
+import { useMediaTypes, useMediaChemicalRequirementsByMediaType, useStockSolutions } from "@/hooks/useApiQueries";
 import type { MediaPreparation, MediaPreparationCreate } from "@/types/api";
 
 function todayISO(): string {
@@ -45,6 +45,7 @@ interface FormState {
     contamination_notes: string;
     bottles_issued: string;
     issued_date: string;
+    stock_usages: { stockId: string; volume: string }[];
 }
 
 const defaultForm = (): FormState => ({
@@ -56,6 +57,7 @@ const defaultForm = (): FormState => ({
     contamination_notes: "",
     bottles_issued: "0",
     issued_date: "",
+    stock_usages: [],
 });
 
 function toFormState(record: MediaPreparation): FormState {
@@ -68,6 +70,7 @@ function toFormState(record: MediaPreparation): FormState {
         contamination_notes: record.contamination_notes || "",
         bottles_issued: String(record.bottles_issued ?? "0"),
         issued_date: record.issued_date || "",
+        stock_usages: [], // We won't prefill stock usages in edit mode for now
     };
 }
 
@@ -87,11 +90,9 @@ export default function MediaPreparationDialog({
 
     const selectedMediaTypeId = form.media_type ? Number(form.media_type) : 0;
     const { data: reqData } = useMediaChemicalRequirementsByMediaType(selectedMediaTypeId);
-    const { data: chemicalsData } = useChemicals();
+    const { data: stockData } = useStockSolutions({ limit: 1000 });
+    const stockSolutions = stockData?.results ?? [];
     const requirements = reqData?.results ?? [];
-    const chemicalsMap = Object.fromEntries(
-        (chemicalsData?.results ?? []).map((c) => [c.id, c])
-    );
 
     const qty = parseFloat(form.quantity);
     const hasQty = !isNaN(qty) && qty > 0;
@@ -101,7 +102,6 @@ export default function MediaPreparationDialog({
             name: req.chemical_name ?? "",
             unit: req.chemical_unit ?? "",
             consumed: req.quantity_required * qty,
-            remaining: chemicalsMap[req.chemical]?.remaining_stock ?? null,
           }))
         : [];
 
@@ -145,9 +145,7 @@ export default function MediaPreparationDialog({
         return Object.keys(newErrors).length === 0;
     }
 
-    const hasStockWarning = mode === "create" && preview.some(
-        (row) => row.remaining !== null && row.consumed > row.remaining
-    );
+    const hasStockWarning = false; // We don't block anymore on dry chemicals
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -163,6 +161,10 @@ export default function MediaPreparationDialog({
                 contamination_notes: form.contamination_notes || undefined,
                 bottles_issued: form.bottles_issued ? parseInt(form.bottles_issued) : 0,
                 issued_date: form.issued_date || null,
+                stock_usages: form.stock_usages.filter(u => u.stockId && u.volume).map(u => ({
+                    stock_solution: parseInt(u.stockId),
+                    volume_consumed: parseFloat(u.volume)
+                }))
             };
             await onSubmit(payload);
             onOpenChange(false);
@@ -299,23 +301,92 @@ export default function MediaPreparationDialog({
                             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Chemicals to be consumed</p>
                             <div className="divide-y max-h-48 overflow-y-auto">
                                 {preview.map((row) => {
-                                    const warn = row.remaining !== null && row.consumed > row.remaining;
                                     return (
                                         <div key={row.id} className="flex items-center justify-between py-1.5 text-sm">
                                             <span className="flex items-center gap-1.5">
-                                                {warn && <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
-                                                <span className={warn ? "text-amber-600" : ""}>{row.name}</span>
+                                                <span>{row.name}</span>
                                             </span>
                                             <span className="text-muted-foreground tabular-nums">
                                                 {row.consumed.toFixed(4)} {row.unit}
-                                                {warn && row.remaining !== null && (
-                                                    <span className="ml-2 text-xs text-amber-500">(stock: {row.remaining})</span>
-                                                )}
                                             </span>
                                         </div>
                                     );
                                 })}
                             </div>
+                        </div>
+                    )}
+
+                    {mode === "create" && (
+                        <div className="space-y-4 pt-4 border-t border-border/50">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="text-sm font-semibold">Stock Solutions Used</h4>
+                                    <p className="text-xs text-muted-foreground">Log what stock solutions were consumed for this batch</p>
+                                </div>
+                                <Button type="button" variant="outline" size="sm" onClick={() => setForm(f => ({ ...f, stock_usages: [...f.stock_usages, { stockId: "", volume: "" }] }))} className="h-8 gap-1.5">
+                                    <Plus className="h-3.5 w-3.5" /> Add Stock
+                                </Button>
+                            </div>
+
+                            {form.stock_usages.length === 0 ? (
+                                <div className="text-center p-6 border border-dashed rounded-lg bg-muted/10 text-muted-foreground text-sm">
+                                    No stock solutions added. (Optional)
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {form.stock_usages.map((usage, i) => (
+                                        <div key={i} className="flex gap-3 items-start bg-muted/20 p-3 rounded-lg border border-border/50 relative">
+                                            <div className="flex-1 space-y-2">
+                                                <Label className="text-xs">Stock Solution</Label>
+                                                <Select value={usage.stockId} onValueChange={(val) => {
+                                                    const newU = [...form.stock_usages];
+                                                    newU[i].stockId = val;
+                                                    setForm(f => ({ ...f, stock_usages: newU }));
+                                                }}>
+                                                    <SelectTrigger className="h-8">
+                                                        <SelectValue placeholder="Select stock..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {stockSolutions.map(s => (
+                                                            <SelectItem key={s.id} value={s.id.toString()}>
+                                                                {s.name} ({s.remaining_volume} {s.unit} left)
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="w-32 space-y-2">
+                                                <Label className="text-xs">Volume</Label>
+                                                <div className="relative">
+                                                    <Input 
+                                                        type="number" step="0.01" min="0.01" value={usage.volume} 
+                                                        onChange={(e) => {
+                                                            const newU = [...form.stock_usages];
+                                                            newU[i].volume = e.target.value;
+                                                            setForm(f => ({ ...f, stock_usages: newU }));
+                                                        }} 
+                                                        className="h-8 pr-12"
+                                                    />
+                                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                                                        {usage.stockId ? stockSolutions.find(s => s.id.toString() === usage.stockId)?.unit : ''}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <Button
+                                                type="button" variant="ghost" size="icon"
+                                                className="h-8 w-8 mt-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                                onClick={() => {
+                                                    const newU = [...form.stock_usages];
+                                                    newU.splice(i, 1);
+                                                    setForm(f => ({ ...f, stock_usages: newU }));
+                                                }}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
 

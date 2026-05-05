@@ -110,6 +110,7 @@ export interface MediaPreparationCreate {
   contamination_notes?: string;
   bottles_issued?: number;
   issued_date?: string | null;
+  stock_usages?: { stock_solution: number; volume_consumed: number }[];
 }
 
 export interface ContaminationMonitoring {
@@ -275,6 +276,50 @@ export interface ChemicalUsageLog {
   batch_number?: string;
   quantity_consumed: number;
   timestamp: string;
+}
+
+// ============================================
+// Stock Solution Types
+// ============================================
+export interface StockSolution {
+  id: number;
+  name: string;
+  description?: string;
+  remaining_volume: number;
+  unit: string;
+}
+
+export interface StockSolutionCreate {
+  name: string;
+  description?: string;
+  remaining_volume?: number;
+  unit?: string;
+}
+
+export interface StockSolutionChemicalUsage {
+  id: number;
+  chemical: number;
+  chemical_name?: string;
+  chemical_unit?: string;
+  quantity_consumed: number;
+}
+
+export interface StockSolutionPreparation {
+  id: number;
+  stock_solution: number;
+  stock_solution_name?: string;
+  volume_prepared: number;
+  prepared_by: number;
+  prepared_by_name?: string;
+  date: string;
+  chemical_usages: StockSolutionChemicalUsage[];
+}
+
+export interface StockSolutionPreparationCreate {
+  stock_solution: number;
+  volume_prepared: number;
+  date: string;
+  chemical_usages: { chemical: number; quantity_consumed: number }[];
 }
 
 // ============================================

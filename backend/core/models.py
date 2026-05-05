@@ -16,19 +16,9 @@ class User(AbstractUser):
         ('active', 'Active'),
         ('inactive', 'Inactive'),
     ]
-    GENDER_CHOICES = [
-        ('male', 'Male'),
-        ('female', 'Female'),
-        ('other', 'Other'),
-    ]
-
     email = models.EmailField(unique=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
-    profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
-    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, null=True)
-    employee_id = models.CharField(max_length=50, blank=True, null=True, unique=True)
-    mobile_number = models.CharField(max_length=15, blank=True, null=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
@@ -81,6 +71,19 @@ class FindingType(models.Model):
     def __str__(self):
         return self.name
     
+    class Meta:
+        ordering = ['name']
+
+
+class StockSolution(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.CharField(max_length=255, blank=True)
+    remaining_volume = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    unit = models.CharField(max_length=20, default='mL')
+
+    def __str__(self):
+        return f"{self.name} ({self.remaining_volume} {self.unit})"
+
     class Meta:
         ordering = ['name']
 
@@ -228,23 +231,6 @@ class Greenhouse(models.Model):
     def __str__(self):
         return f"{self.variety.code} - Batch {self.batch_number}"
     
-class UserOTP(models.Model):
-    email = models.EmailField()
-    otp = models.CharField(max_length=6)
-    created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField()
-    is_used = models.BooleanField(default=False)
-    
-    def __str__(self):
-        return f"{self.email} - {self.otp} ({'Used' if self.is_used else 'Active'})"
-    
-    @property
-    def is_expired(self):
-        return timezone.now() > self.expires_at
-
-    class Meta:
-        ordering = ['-created_at']
-
 class RecentActivity(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recent_activities')
     content = models.TextField()
@@ -289,3 +275,35 @@ class ChemicalUsageLog(models.Model):
 
     def __str__(self):
         return f"{self.chemical.name} — {self.quantity_consumed} consumed for Batch {self.media_preparation.batch_number}"
+
+# ============================================
+# STOCK SOLUTION USAGE
+# ============================================
+class StockSolutionPreparation(models.Model):
+    stock_solution = models.ForeignKey(StockSolution, on_delete=models.PROTECT, related_name='preparations')
+    volume_prepared = models.DecimalField(max_digits=10, decimal_places=2)
+    prepared_by = models.ForeignKey('User', on_delete=models.PROTECT, related_name='stock_preparations')
+    date = models.DateField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.stock_solution.name} - {self.volume_prepared} {self.stock_solution.unit} ({self.date})"
+    
+    class Meta:
+        ordering = ['-date', '-created_at']
+
+class StockSolutionChemicalUsage(models.Model):
+    preparation = models.ForeignKey(StockSolutionPreparation, on_delete=models.CASCADE, related_name='chemical_usages')
+    chemical = models.ForeignKey(Chemical, on_delete=models.PROTECT, related_name='stock_usage_logs')
+    quantity_consumed = models.DecimalField(max_digits=10, decimal_places=4)
+    
+    def __str__(self):
+        return f"{self.chemical.name} — {self.quantity_consumed} for {self.preparation}"
+
+class MediaStockUsage(models.Model):
+    media_preparation = models.ForeignKey(MediaPreparation, on_delete=models.CASCADE, related_name='stock_usages')
+    stock_solution = models.ForeignKey(StockSolution, on_delete=models.PROTECT, related_name='media_usage_logs')
+    volume_consumed = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    def __str__(self):
+        return f"{self.stock_solution.name} — {self.volume_consumed} consumed for Batch {self.media_preparation.batch_number}"

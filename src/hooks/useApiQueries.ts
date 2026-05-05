@@ -7,7 +7,9 @@ import {
   mediaTypesApi,
   findingTypesApi,
   chemicalsApi,
-  mediaPreparationApi,
+  mediaPreparationsApi,
+  stockSolutionsApi,
+  stockPreparationsApi,
   mediaChemicalRequirementsApi,
   chemicalUsageLogsApi,
   contaminationMonitoringApi,
@@ -40,6 +42,10 @@ import {
   type MediaChemicalRequirement,
   type MediaChemicalRequirementCreate,
   type ChemicalUsageLog,
+  type StockSolution,
+  type StockSolutionCreate,
+  type StockSolutionPreparation,
+  type StockSolutionPreparationCreate,
   type RecentActivityCreate,
   type DashboardResponse,
 } from '@/lib/api';
@@ -267,17 +273,17 @@ export function useAdjustChemicalStock() {
 // ============================================
 // MEDIA PREPARATION HOOKS
 // ============================================
-export function useMediaPreparation(params?: Record<string, string | number>) {
+export function useMediaPreparations(params?: Record<string, string | number>) {
   return useQuery<PaginatedResponse<MediaPreparation>>({
     queryKey: ['media-preparation', params],
-    queryFn: () => mediaPreparationApi.getAll(params),
+    queryFn: () => mediaPreparationsApi.getAll(params),
   });
 }
 
 export function useCreateMediaPreparation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: MediaPreparationCreate) => mediaPreparationApi.create(data),
+    mutationFn: (data: MediaPreparationCreate) => mediaPreparationsApi.create(data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-preparation'] }),
   });
 }
@@ -286,7 +292,7 @@ export function useUpdateMediaPreparation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<MediaPreparationCreate> }) => 
-      mediaPreparationApi.update(id, data),
+      mediaPreparationsApi.update(id, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-preparation'] }),
   });
 }
@@ -294,8 +300,73 @@ export function useUpdateMediaPreparation() {
 export function useDeleteMediaPreparation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => mediaPreparationApi.delete(id),
+    mutationFn: (id: number) => mediaPreparationsApi.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-preparation'] }),
+  });
+}
+
+// ============================================
+// STOCK SOLUTIONS HOOKS
+// ============================================
+export function useStockSolutions(params?: Record<string, string | number>) {
+  return useQuery<PaginatedResponse<StockSolution>>({
+    queryKey: ['stock-solutions', params],
+    queryFn: () => stockSolutionsApi.getAll(params),
+  });
+}
+
+export function useCreateStockSolution() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: StockSolutionCreate) => stockSolutionsApi.create(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['stock-solutions'] }),
+  });
+}
+
+export function useUpdateStockSolution() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<StockSolutionCreate> }) => 
+      stockSolutionsApi.update(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['stock-solutions'] }),
+  });
+}
+
+export function useDeleteStockSolution() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => stockSolutionsApi.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['stock-solutions'] }),
+  });
+}
+
+// ============================================
+// STOCK PREPARATIONS HOOKS
+// ============================================
+export function useStockPreparations(params?: Record<string, string | number>) {
+  return useQuery<PaginatedResponse<StockSolutionPreparation>>({
+    queryKey: ['stock-preparations', params],
+    queryFn: () => stockPreparationsApi.getAll(params),
+  });
+}
+
+export function useCreateStockPreparation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: StockSolutionPreparationCreate) => stockPreparationsApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stock-preparations'] });
+      queryClient.invalidateQueries({ queryKey: ['stock-solutions'] });
+      queryClient.invalidateQueries({ queryKey: ['chemicals'] });
+    },
+  });
+}
+
+export function useDeleteStockPreparation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => stockPreparationsApi.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['stock-preparations'] }),
   });
 }
 

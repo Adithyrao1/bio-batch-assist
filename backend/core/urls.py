@@ -25,6 +25,8 @@ router.register(r'greenhouse', views.GreenhouseViewSet)
 router.register(r'recent-activity', views.RecentActivityViewSet)
 router.register(r'media-chemical-requirements', views.MediaChemicalRequirementViewSet, basename='media-chemical-requirements')
 router.register(r'chemical-usage-logs', views.ChemicalUsageLogViewSet, basename='chemical-usage-logs')
+router.register(r'stock-solutions', views.StockSolutionViewSet, basename='stock-solutions')
+router.register(r'stock-preparations', views.StockSolutionPreparationViewSet, basename='stock-preparations')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -33,20 +35,9 @@ urlpatterns = [
     path('tasks/trigger-chemical-expiry-digest/', views.TriggerChemicalExpiryDigestView.as_view(), name='trigger_chemical_expiry_digest'),
     
     # Auth endpoints
-    path('auth/login/', views.LoginView.as_view(), name='login'),
     path('auth/entra-login/', views.EntraLoginView.as_view(), name='entra_login'),
-    path('auth/signup/', views.SignupView.as_view(), name='signup'),
-    path('auth/logout/', views.LogoutView.as_view(), name='logout'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/profile/', views.ProfileView.as_view(), name='profile'),
-    path('auth/change-password/', views.ChangePasswordView.as_view(), name='change_password'),
-    path('auth/request-otp/', views.RequestOTPView.as_view(), name='request_otp'),
-    path('auth/verify-otp/', views.VerifyOTPView.as_view(), name='verify_otp'),
-    path('auth/settings/request-otp/', views.AuthSettingsOTPRequestView.as_view(), name='settings_request_otp'),
-    path('auth/settings/verify-otp/', views.AuthSettingsOTPVerifyView.as_view(), name='settings_verify_otp'),
-    path('auth/complete-signup/', views.CompleteSignupView.as_view(), name='complete_signup'),
-    path('auth/forgot-password/request-otp/', views.ForgotPasswordRequestView.as_view(), name='forgot_password_request'),
-    path('auth/forgot-password/reset/', views.ForgotPasswordResetView.as_view(), name='forgot_password_reset'),
 
     # AI Assistant (LangChain + DeepSeek + MySQL)
     path('ai-assistant/', views.AIAssistantView.as_view(), name='ai_assistant'),

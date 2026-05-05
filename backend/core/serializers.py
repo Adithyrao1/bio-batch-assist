@@ -3,7 +3,8 @@ from .models import (
     User, Area, Variety, MediaType, FindingType,
     Chemical, MediaPreparation, ContaminationMonitoring,
     ContaminationReport, InoculationRoom, GrowthRoom, Greenhouse,
-    RecentActivity, MediaChemicalRequirement, ChemicalUsageLog
+    RecentActivity, MediaChemicalRequirement, ChemicalUsageLog,
+    StockSolution, StockSolutionPreparation, StockSolutionChemicalUsage, MediaStockUsage
 )
 
 
@@ -71,9 +72,18 @@ class ChemicalSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class MediaStockUsageSerializer(serializers.ModelSerializer):
+    stock_solution_name = serializers.CharField(source='stock_solution.name', read_only=True)
+
+    class Meta:
+        model = MediaStockUsage
+        fields = ['id', 'stock_solution', 'stock_solution_name', 'volume_consumed']
+        read_only_fields = ['id']
+
 class MediaPreparationSerializer(serializers.ModelSerializer):
     media_type_name = serializers.CharField(source='media_type.name', read_only=True)
     prepared_by_name = serializers.CharField(source='prepared_by.get_full_name', read_only=True)
+    stock_usages = MediaStockUsageSerializer(many=True, read_only=True)
     
     class Meta:
         model = MediaPreparation
@@ -134,34 +144,6 @@ class GreenhouseSerializer(serializers.ModelSerializer):
 # ============================================
 # AUTH SERIALIZERS
 # ============================================
-class LoginSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    password = serializers.CharField(write_only=True)
-
-
-class SignupSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=6)
-    password_confirm = serializers.CharField(write_only=True, min_length=6)
-    
-    class Meta:
-        model = User
-        fields = ['username', 'password', 'password_confirm', 'first_name', 'last_name', 'email']
-    
-    def validate(self, data):
-        if data['password'] != data['password_confirm']:
-            raise serializers.ValidationError({'password_confirm': 'Passwords do not match'})
-        return data
-    
-    def create(self, validated_data):
-        validated_data.pop('password_confirm')
-        password = validated_data.pop('password')
-        # New signups default to 'viewer' role - admin can upgrade later
-        user = User(**validated_data, role='viewer', status='active')
-        user.set_password(password)
-        user.save()
-        return user
-
-
 class UserProfileSerializer(serializers.ModelSerializer):
     """Serializer for current user profile"""
     full_name = serializers.SerializerMethodField()
@@ -170,13 +152,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'full_name', 'email', 'role', 'status']
         read_only_fields = ['id', 'username', 'role', 'status']
-    
-class RequestOTPSerializer(serializers.Serializer):
-    email = serializers.EmailField()
 
-class VerifyOTPSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    otp = serializers.CharField(min_length=6, max_length=6)
 
 class RecentActivitySerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source='user.get_full_name', read_only=True)
@@ -210,3 +186,30 @@ class ChemicalUsageLogSerializer(serializers.ModelSerializer):
         model = ChemicalUsageLog
         fields = ['id', 'chemical', 'chemical_name', 'chemical_unit', 'media_preparation', 'batch_number', 'quantity_consumed', 'timestamp']
         read_only_fields = ['id', 'timestamp']
+
+# ============================================
+# STOCK SOLUTION SERIALIZERS
+# ============================================
+class StockSolutionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StockSolution
+        fields = '__all__'
+
+class StockSolutionChemicalUsageSerializer(serializers.ModelSerializer):
+    chemical_name = serializers.CharField(source='chemical.name', read_only=True)
+    chemical_unit = serializers.CharField(source='chemical.unit', read_only=True)
+
+    class Meta:
+        model = StockSolutionChemicalUsage
+        fields = ['id', 'chemical', 'chemical_name', 'chemical_unit', 'quantity_consumed']
+        read_only_fields = ['id']
+
+class StockSolutionPreparationSerializer(serializers.ModelSerializer):
+    stock_solution_name = serializers.CharField(source='stock_solution.name', read_only=True)
+    prepared_by_name = serializers.CharField(source='prepared_by.get_full_name', read_only=True)
+    chemical_usages = StockSolutionChemicalUsageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = StockSolutionPreparation
+        fields = '__all__'
+        read_only_fields = ['prepared_by', 'created_at']

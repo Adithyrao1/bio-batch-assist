@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  useMediaPreparation,
+  useMediaPreparations,
   useDeleteMediaPreparation,
   useCreateMediaPreparation,
   useUpdateMediaPreparation,
@@ -20,7 +20,9 @@ import {
 import type { MediaPreparation, MediaPreparationCreate } from "@/types/api";
 import MediaPreparationDialog from "@/components/MediaPreparationDialog";
 import BatchChemicalUsageDialog from "@/components/BatchChemicalUsageDialog";
+import StockSolutionsTab from "@/components/StockSolutionsTab";
 import { FilterBar, type FilterConfig } from "@/components/FilterBar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // ─── Deterministic media-type color palette ────────────────────────────────
 const MEDIA_PALETTE = [
@@ -85,7 +87,7 @@ function IssuedBar({ prepared, issued }: { prepared: number; issued: number }) {
 export default function MediaPreparation() {
   const { toast } = useToast();
   const { hasPermission } = useAuth();
-  const { data, isLoading, isError, refetch } = useMediaPreparation();
+  const { data, isLoading, isError, refetch } = useMediaPreparations();
   const createRecord = useCreateMediaPreparation();
   const updateRecord = useUpdateMediaPreparation();
   const deleteRecord = useDeleteMediaPreparation();
@@ -239,7 +241,20 @@ export default function MediaPreparation() {
         </div>
       </div>
 
-      {/* ── Stats Row ───────────────────────────────────────────────────── */}
+      <Tabs defaultValue="media" className="w-full">
+        <div className="flex items-center justify-between">
+          <TabsList className="bg-muted/50 p-1 border border-border/50">
+            <TabsTrigger value="media" className="data-[state=active]:bg-card data-[state=active]:text-amber-700 data-[state=active]:shadow-sm px-6">
+              Media Batches
+            </TabsTrigger>
+            <TabsTrigger value="stock" className="data-[state=active]:bg-card data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm px-6">
+              Stock Solutions
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="media" className="mt-6 space-y-6 animate-in fade-in-50 zoom-in-95 duration-200">
+          {/* ── Stats Row ───────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Layers}      label="Total Batches"   value={stats.totalBatches}  sub={`${displayData.length} showing`}   colorClass="bg-amber-500/10 text-amber-600 dark:text-amber-400"    delay={0.05} />
         <StatCard icon={FlaskConical} label="Total Volume"   value={`${stats.totalVolume} L`} sub="media prepared"              colorClass="bg-orange-500/10 text-orange-600 dark:text-orange-400"  delay={0.1} />
@@ -433,6 +448,12 @@ export default function MediaPreparation() {
           </Table>
         )}
       </motion.div>
+      </TabsContent>
+
+      <TabsContent value="stock" className="animate-in fade-in-50 zoom-in-95 duration-200">
+        <StockSolutionsTab />
+      </TabsContent>
+      </Tabs>
 
       <MediaPreparationDialog
         open={dialogOpen}
