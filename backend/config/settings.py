@@ -243,3 +243,4 @@ CELERY_BEAT_SCHEDULE = {
 # ── DeepSeek AI ──────────────────────────────────────────────────────────────
 DEEPSEEK_API_KEY = 'sk-598f8966bb264485a3198c50c4f6f967'  # Replace with your actual key
 DEEPSEEK_MODEL   = 'deepseek-chat'
+#nflkjn

@@ -309,23 +309,57 @@ class MediaPreparationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminOrTechnician]
 
     def perform_create(self, serializer):
-        with transaction.atomic():
-            media_prep = serializer.save(prepared_by=self.request.user)
+        from rest_framework.exceptions import ValidationError as DRFValidationError
+        from decimal import Decimal
 
-            # Handle stock solution usages
+        with transaction.atomic():
+            # ── Pre-flight: validate stock levels BEFORE saving anything ──────
             stock_usages_data = self.request.data.get('stock_usages', [])
             for usage_data in stock_usages_data:
                 stock_solution_id = usage_data.get('stock_solution')
                 volume_consumed = usage_data.get('volume_consumed')
-                
+
                 if stock_solution_id and volume_consumed:
-                    stock_solution = StockSolution.objects.get(id=stock_solution_id)
+                    # Lock the row so concurrent requests cannot double-deduct
+                    try:
+                        stock_solution = StockSolution.objects.select_for_update().get(id=stock_solution_id)
+                    except StockSolution.DoesNotExist:
+                        raise DRFValidationError(
+                            {"stock_usages": f"Stock solution with id {stock_solution_id} does not exist."}
+                        )
+
+                    requested = Decimal(str(volume_consumed))
+                    if requested <= 0:
+                        raise DRFValidationError(
+                            {"stock_usages": f"Volume consumed must be greater than zero (got {requested})."}
+                        )
+
+                    if stock_solution.remaining_volume < requested:
+                        raise DRFValidationError({
+                            "stock_usages": (
+                                f"Insufficient stock for '{stock_solution.name}'. "
+                                f"Available: {stock_solution.remaining_volume} mL, "
+                                f"Requested: {requested} mL."
+                            )
+                        })
+
+            # ── All checks passed — save media prep and deduct stock ──────────
+            media_prep = serializer.save(prepared_by=self.request.user)
+
+            for usage_data in stock_usages_data:
+                stock_solution_id = usage_data.get('stock_solution')
+                volume_consumed = usage_data.get('volume_consumed')
+
+                if stock_solution_id and volume_consumed:
+                    stock_solution = StockSolution.objects.select_for_update().get(id=stock_solution_id)
+                    requested = Decimal(str(volume_consumed))
+
                     MediaStockUsage.objects.create(
                         media_preparation=media_prep,
                         stock_solution=stock_solution,
-                        volume_consumed=volume_consumed
+                        volume_consumed=requested,
                     )
-                    stock_solution.remaining_volume -= type(stock_solution.remaining_volume)(str(volume_consumed))
+                    stock_solution.remaining_volume -= requested
                     stock_solution.save(update_fields=['remaining_volume'])
 class ContaminationMonitoringViewSet(viewsets.ModelViewSet):
     queryset = ContaminationMonitoring.objects.select_related('area', 'recorded_by').all()
@@ -475,82 +509,58 @@ class DashboardView(APIView):
 
 
 # ============================================
-# AI ASSISTANT VIEW (LangChain + DeepSeek + MySQL)
+# AI ASSISTANT VIEW  (LangChain ReAct Agent)
 # ============================================
 class AIAssistantView(APIView):
     """
     POST /api/ai-assistant/
-    Body: {"message": "natural language question"}
-    Uses LangChain SQLDatabaseChain with DeepSeek to answer questions
-    about the bio_batch_assist database in natural language.
+    Body:    { "message": "natural language question" }
+    Returns: { "reply": "agent's answer" }
+
+    Uses a LangChain ReAct agent with 17 read-only tools to answer
+    natural language questions about the live DCM LabNest database.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        from langchain_community.utilities import SQLDatabase
-        from langchain_experimental.sql import SQLDatabaseChain
-        from langchain_openai import ChatOpenAI
-        from langchain_core.prompts import PromptTemplate
-        from django.db import connection
+        from core.agent.agent import build_agent
 
         message = (request.data.get('message') or '').strip()
         if not message:
-            return Response({'error': 'message is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-        api_key = settings.DEEPSEEK_API_KEY
-        if not api_key or api_key == 'YOUR_DEEPSEEK_API_KEY_HERE':
             return Response(
-                {'error': 'DeepSeek API key is not configured.'},
+                {'error': 'message is required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        api_key = getattr(settings, 'DEEPSEEK_API_KEY', '')
+        if not api_key:
+            return Response(
+                {'error': 'AI service is not configured. Contact the administrator.'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
         try:
-            db_settings = settings.DATABASES['default']
-            db_user = db_settings.get('USER', 'root')
-            db_password = db_settings.get('PASSWORD', '')
-            db_host = db_settings.get('HOST', '127.0.0.1')
-            db_port = db_settings.get('PORT', '3306')
-            db_name = db_settings.get('NAME', 'bio_batch_assist')
+            from langchain_core.messages import SystemMessage
 
-            db_uri = f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+            user = request.user
+            user_context = SystemMessage(content=(
+                f"The currently logged-in user is: {user.get_full_name() or user.username} "
+                f"(email: {user.email}). "
+                f"When sending any report or alert email, ALWAYS use '{user.email}' "
+                f"as the recipient_email argument. Do not ask the user for their email."
+            ))
 
-            db = SQLDatabase.from_uri(db_uri)
-
-            llm = ChatOpenAI(
-                model=settings.DEEPSEEK_MODEL,
-                openai_api_key=api_key,
-                openai_api_base='https://api.deepseek.com',
-                temperature=0,
-            )
-
-            prompt_template = """You are a expert data analyst for DCM LabNest, a sugarcane tissue culture lab management system.
-Given an input question, create a syntactically correct MySQL query, run it, and return a clear answer.
-Do NOT wrap SQL in markdown code blocks. Write plain SQL only.
-Be concise—give the answer directly, not just raw data.
-
-Only use the following tables:\n{table_info}
-
-Question: {input}"""
-
-            PROMPT = PromptTemplate(
-                input_variables=["input", "table_info"],
-                template=prompt_template
-            )
-
-            db_chain = SQLDatabaseChain.from_llm(
-                llm,
-                db,
-                prompt=PROMPT,
-                verbose=False,
-            )
-
-            result = db_chain.invoke({"query": message})
-            reply = result.get('result', 'No result returned.')
+            agent = build_agent(verbose=True)
+            result = agent.invoke({
+                "input": message,
+                "chat_history": [user_context],
+            })
+            reply = result.get('output') or 'I was unable to generate a response. Please try again.'
             return Response({'reply': reply})
 
         except Exception as exc:
             return Response(
-                {'error': f'AI Assistant error: {str(exc)}'},
+                {'error': f'Agent error: {str(exc)}'},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 

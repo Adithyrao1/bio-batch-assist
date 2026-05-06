@@ -152,7 +152,7 @@ export function AppSidebar() {
                   DCM SHRIRAM
                 </p>
                 <p className="text-[10px] font-semibold text-foreground/80 leading-tight">
-                  Lab Data Management
+                  LabNest
                 </p>
                 <p className="text-[9px] text-muted-foreground mt-0.5">Tissue Culture LIMS</p>
               </motion.div>
