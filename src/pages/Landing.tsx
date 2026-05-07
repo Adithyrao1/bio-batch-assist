@@ -1,5 +1,6 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Sprout,
   FlaskConical,
@@ -11,11 +12,15 @@ import {
   Bot,
   Sparkles,
   Database,
-  MessageSquareText
+  MessageSquareText,
+  X,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useMsal } from "@azure/msal-react";
+import { loginRequest } from "@/lib/authConfig";
 
 const features = [
   {
@@ -60,6 +65,32 @@ const benefits = [
 ];
 
 export default function Landing() {
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const { instance } = useMsal();
+
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      await instance.loginRedirect(loginRequest);
+    } catch (e) {
+      console.error(e);
+      setIsLoggingIn(false);
+    }
+  };
+
+  // Prevent scrolling when modal is open
+  useEffect(() => {
+    if (showLoginModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [showLoginModal]);
+
   return (
     <div className="min-h-screen relative bg-background text-foreground overflow-hidden">
       {/* Cinematic Video Background */}
@@ -90,9 +121,7 @@ export default function Landing() {
             </Link>
             <div className="flex items-center gap-3">
               <ThemeToggle />
-              <Link to="/login">
-                <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 border-0 text-white shadow-lg shadow-emerald-500/20">Sign In / SSO</Button>
-              </Link>
+              <Button onClick={() => setShowLoginModal(true)} className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 border-0 text-white shadow-lg shadow-emerald-500/20">Sign In / SSO</Button>
             </div>
           </div>
         </header>
@@ -123,12 +152,10 @@ export default function Landing() {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <Link to="/login">
-                  <Button size="lg" className="w-full sm:w-auto h-14 px-8 text-base bg-foreground text-background hover:bg-foreground/90 rounded-full group shadow-xl">
-                    <Bot className="mr-2 h-5 w-5 group-hover:rotate-12 transition-transform" />
-                    Login with Microsoft
-                  </Button>
-                </Link>
+                <Button onClick={() => setShowLoginModal(true)} size="lg" className="w-full sm:w-auto h-14 px-8 text-base bg-foreground text-background hover:bg-foreground/90 rounded-full group shadow-xl">
+                  <Bot className="mr-2 h-5 w-5 group-hover:rotate-12 transition-transform" />
+                  Login with Microsoft
+                </Button>
               </div>
             </motion.div>
           </div>
@@ -375,6 +402,84 @@ export default function Landing() {
           </div>
         </footer>
       </div>
+
+      {/* iOS-style Login Modal */}
+      <AnimatePresence>
+        {showLoginModal && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-md"
+              onClick={() => setShowLoginModal(false)}
+            />
+
+            {/* Modal */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none"
+            >
+              <div className="w-full max-w-sm pointer-events-auto">
+                <div className="bg-background/80 dark:bg-background/40 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+                  {/* Close button */}
+                  <button
+                    onClick={() => setShowLoginModal(false)}
+                    className="absolute top-4 right-4 p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                  >
+                    <X className="h-5 w-5 text-muted-foreground" />
+                  </button>
+
+                  <div className="flex flex-col items-center text-center">
+                    <div className="h-14 w-14 rounded-2xl flex items-center justify-center mb-5 shadow-lg bg-gradient-to-br from-violet-600 to-indigo-600">
+                      <Sprout className="h-7 w-7 text-white" />
+                    </div>
+                    
+                    <h2 className="text-2xl font-bold tracking-tight text-foreground mb-2">
+                      Welcome back
+                    </h2>
+                    <p className="text-sm text-muted-foreground mb-8">
+                      Sign in with your organization account to access the AI dashboard.
+                    </p>
+
+                    <Button
+                      onClick={handleLogin}
+                      disabled={isLoggingIn}
+                      className="w-full h-12 rounded-xl text-sm font-semibold text-white shadow-lg shadow-blue-500/20 bg-gradient-to-br from-[#0078d4] to-[#005a9e] hover:opacity-90 transition-opacity"
+                    >
+                      {isLoggingIn ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Redirecting...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="mr-3" width="18" height="18" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M10 0H0V10H10V0Z" fill="#F25022" />
+                            <path d="M21 0H11V10H21V0Z" fill="#7FBA00" />
+                            <path d="M10 11H0V21H10V11Z" fill="#00A4EF" />
+                            <path d="M21 11H11V21H21V11Z" fill="#FFB900" />
+                          </svg>
+                          Sign In with Microsoft
+                        </>
+                      )}
+                    </Button>
+                    
+                    <p className="text-xs text-muted-foreground/60 mt-6 max-w-[250px] mx-auto">
+                      Access is restricted to authorized DCM Shriram personnel.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

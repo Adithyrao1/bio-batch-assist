@@ -16,21 +16,21 @@ export default function Login() {
 
   const t = isDark
     ? {
-        bg: "#0a0a12",
-        card: "rgba(255,255,255,0.05)",
-        cardBorder: "rgba(255,255,255,0.08)",
-        cardShadow: "0 32px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)",
-        title: "#ffffff",
-        subtitle: "rgba(255,255,255,0.5)",
-      }
+      bg: "#0a0a12",
+      card: "rgba(255,255,255,0.05)",
+      cardBorder: "rgba(255,255,255,0.08)",
+      cardShadow: "0 32px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)",
+      title: "#ffffff",
+      subtitle: "rgba(255,255,255,0.5)",
+    }
     : {
-        bg: "#f5f4ff",
-        card: "rgba(255,255,255,0.85)",
-        cardBorder: "rgba(124,58,237,0.12)",
-        cardShadow: "0 24px 60px rgba(100,80,200,0.12), 0 2px 8px rgba(0,0,0,0.06)",
-        title: "#1a1035",
-        subtitle: "#6b7280",
-      };
+      bg: "#f5f4ff",
+      card: "rgba(255,255,255,0.85)",
+      cardBorder: "rgba(124,58,237,0.12)",
+      cardShadow: "0 24px 60px rgba(100,80,200,0.12), 0 2px 8px rgba(0,0,0,0.06)",
+      title: "#1a1035",
+      subtitle: "#6b7280",
+    };
 
   const handleLogin = async () => {
     setIsLoading(true);
@@ -108,10 +108,10 @@ export default function Login() {
             {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" /> Redirecting...</> : (
               <>
                 <svg width="18" height="18" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M10 0H0V10H10V0Z" fill="#F25022"/>
-                  <path d="M21 0H11V10H21V0Z" fill="#7FBA00"/>
-                  <path d="M10 11H0V21H10V11Z" fill="#00A4EF"/>
-                  <path d="M21 11H11V21H21V11Z" fill="#FFB900"/>
+                  <path d="M10 0H0V10H10V0Z" fill="#F25022" />
+                  <path d="M21 0H11V10H21V0Z" fill="#7FBA00" />
+                  <path d="M10 11H0V21H10V11Z" fill="#00A4EF" />
+                  <path d="M21 11H11V21H21V11Z" fill="#FFB900" />
                 </svg>
                 Sign In with Microsoft
               </>
