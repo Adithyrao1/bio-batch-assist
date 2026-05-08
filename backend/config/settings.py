@@ -16,6 +16,9 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+from dotenv import load_dotenv
+load_dotenv(BASE_DIR / '.env')
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -42,6 +45,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
+    'storages',
     # Local apps
     'core',
 ]
@@ -136,6 +140,28 @@ STATIC_URL = 'static/'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# ── Azure Blob Storage ────────────────────────────────────────────────────────
+AZURE_ACCOUNT_NAME = os.environ.get('AZURE_ACCOUNT_NAME')
+AZURE_ACCOUNT_KEY = os.environ.get('AZURE_ACCOUNT_KEY')
+AZURE_CONTAINER = os.environ.get('AZURE_CONTAINER')
+
+if AZURE_ACCOUNT_NAME and AZURE_CONTAINER:
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.azure_storage.AzureStorage",
+            "OPTIONS": {
+                "account_name": AZURE_ACCOUNT_NAME,
+                "account_key": AZURE_ACCOUNT_KEY,
+                "azure_container": AZURE_CONTAINER,
+                "overwrite_files": True,
+            },
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+    AZURE_URL_EXPIRATION_SECS = 3600
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

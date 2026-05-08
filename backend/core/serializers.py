@@ -14,7 +14,7 @@ from .models import (
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'status']
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'status', 'profile_picture']
         read_only_fields = ['id']
 
 
@@ -23,7 +23,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'password', 'first_name', 'last_name', 'email', 'role', 'status']
+        fields = ['id', 'username', 'password', 'first_name', 'last_name', 'email', 'role', 'status', 'profile_picture']
         read_only_fields = ['id']
     
     def create(self, validated_data):
@@ -150,8 +150,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'full_name', 'email', 'role', 'status']
+        fields = ['id', 'username', 'first_name', 'last_name', 'full_name', 'email', 'role', 'status', 'profile_picture']
         read_only_fields = ['id', 'username', 'role', 'status']
+
+    def get_full_name(self, obj):
+        return obj.get_full_name() or obj.username
 
 
 class RecentActivitySerializer(serializers.ModelSerializer):

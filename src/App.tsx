@@ -8,7 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
-import ForgotPassword from "./pages/ForgotPassword";
+
 import Dashboard from "./pages/Dashboard";
 import ContaminationMonitoring from "./pages/ContaminationMonitoring";
 import MediaPreparation from "./pages/MediaPreparation";
@@ -50,7 +50,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-            <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/contamination-monitoring" element={<ProtectedRoute><ContaminationMonitoring /></ProtectedRoute>} />
             <Route path="/media-preparation" element={<ProtectedRoute><MediaPreparation /></ProtectedRoute>} />

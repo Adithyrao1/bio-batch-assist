@@ -143,6 +143,7 @@ class EntraLoginView(APIView):
                 'last_name': user.last_name,
                 'email': user.email,
                 'role': user.role,
+                'profile_picture': request.build_absolute_uri(user.profile_picture.url) if user.profile_picture else None,
             }
         })
 
@@ -150,19 +151,22 @@ class EntraLoginView(APIView):
 
 
 
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+
 class ProfileView(APIView):
     """
     GET /api/auth/profile/ - Get current user profile
     PUT /api/auth/profile/ - Update current user profile
     """
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     
     def get(self, request):
-        serializer = UserProfileSerializer(request.user)
+        serializer = UserProfileSerializer(request.user, context={'request': request})
         return Response(serializer.data)
     
     def put(self, request):
-        serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+        serializer = UserProfileSerializer(request.user, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)

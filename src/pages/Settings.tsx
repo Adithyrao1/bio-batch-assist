@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { authApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import {
   Lock, Mail, ShieldCheck, CheckCircle2, ArrowRight,
-  User, KeyRound, BadgeCheck, Settings2,
+  User, KeyRound, BadgeCheck, Settings2, Camera, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,8 @@ import { UserAvatar } from "@/components/UserAvatar";
 
 export default function Settings() {
   const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [isRequestingOTP, setIsRequestingOTP] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -56,8 +58,41 @@ export default function Settings() {
     }
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      const updatedUser = await authApi.uploadProfilePicture(file);
+      // Update stored user
+      authApi.setStoredUser(updatedUser as any);
+      // Force reload to reflect new picture (simplest approach) or reload profile
+      window.location.reload();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to upload image");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
+      <input 
+        type="file" 
+        accept="image/*" 
+        className="hidden" 
+        ref={fileInputRef} 
+        onChange={handleImageUpload} 
+      />
 
       {/* ── Hero ── */}
       <motion.div
@@ -108,11 +143,23 @@ export default function Settings() {
           <div className="p-6 space-y-5">
             {/* Avatar + name row */}
             <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border/40">
-              <UserAvatar
-                name={user.name}
-                profilePicture={user.profile_picture}
-                size="lg"
-              />
+              <div 
+                className="relative cursor-pointer group"
+                onClick={() => !isUploading && fileInputRef.current?.click()}
+              >
+                <UserAvatar
+                  name={user.name}
+                  profilePicture={user.profile_picture}
+                  size="lg"
+                />
+                <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  {isUploading ? (
+                    <Loader2 className="h-5 w-5 text-white animate-spin" />
+                  ) : (
+                    <Camera className="h-5 w-5 text-white" />
+                  )}
+                </div>
+              </div>
               <div>
                 <p className="text-base font-semibold">{user.name}</p>
                 <p className="text-sm text-muted-foreground">@{user.username}</p>

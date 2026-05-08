@@ -78,3 +78,5 @@ wcwidth==0.6.0
 openai==2.31.0
 playwright==1.59.0
 playwright-stealth==2.0.3
+django-storages[azure]==1.14.2
+azure-storage-blob==12.19.1

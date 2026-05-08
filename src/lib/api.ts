@@ -247,6 +247,32 @@ export const authApi = {
     return response.json();
   },
   
+  async uploadProfilePicture(file: File): Promise<User> {
+    const formData = new FormData();
+    formData.append('profile_picture', file);
+    
+    // We don't want fetchWithAuth to set Content-Type: application/json for FormData
+    // So we handle the request manually or clear Content-Type
+    const token = localStorage.getItem('access_token');
+    const headers: Record<string, string> = {
+      // Let browser set the Content-Type boundary
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/auth/profile/`, {
+      method: 'PUT',
+      headers,
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to upload profile picture');
+    }
+    return response.json();
+  },
+  
 
   async requestSignupOTP(email: string): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/auth/request-otp/`, {
