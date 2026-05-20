@@ -14,7 +14,10 @@ import {
   Database,
   MessageSquareText,
   X,
-  Loader2
+  Loader2,
+  PieChart,
+  FileText,
+  Mail
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,34 +28,34 @@ import { loginRequest } from "@/lib/authConfig";
 const features = [
   {
     icon: Bot,
-    title: "AI-Powered Assistant",
-    description: "Query your live laboratory database in simple human language and get real-time insights.",
+    title: "Autonomous AI Agent",
+    description: "Powered by LangChain and Llama 3.1 to reason, query, and take action autonomously.",
     highlight: true,
   },
   {
+    icon: PieChart,
+    title: "Dynamic Data Visualization",
+    description: "Instantly generate premium, interactive graphs and charts from your lab data via natural language.",
+  },
+  {
+    icon: FileText,
+    title: "Knowledge Base Retrieval",
+    description: "RAG pipeline connected to Azure Blob Storage to query massive SOP and MSDS documents instantly.",
+  },
+  {
+    icon: Mail,
+    title: "Automated Email Agent",
+    description: "Ask the AI to automatically compile and send performance or inventory alerts directly to your inbox.",
+  },
+  {
     icon: Database,
-    title: "Live Database Connection",
+    title: "Live MySQL Connection",
     description: "Instantly access the latest production metrics, inventory, and contamination records.",
   },
   {
-    icon: FlaskConical,
-    title: "Media & Stock Preparation",
-    description: "Track media batches and stock solution inventory automatically.",
-  },
-  {
-    icon: Sprout,
-    title: "Growth Monitoring",
-    description: "Monitor culture growth across inoculation rooms and growth chambers.",
-  },
-  {
     icon: Shield,
-    title: "Contamination Control",
-    description: "Early detection and AI-assisted reporting of contamination incidents.",
-  },
-  {
-    icon: BarChart3,
-    title: "Analytics Dashboard",
-    description: "Real-time insights into production, yields, and overall lab trends.",
+    title: "Enterprise SSO Security",
+    description: "Secure access through Microsoft Entra ID (OIDC) integrated with your corporate directory.",
   },
 ];
 
@@ -182,12 +185,13 @@ export default function Landing() {
                 </div>
               </div>
               <div className="p-6 sm:p-10 space-y-6 bg-gradient-to-b from-transparent to-background/50">
+                {/* First exchange — DB query */}
                 <div className="flex items-start gap-4">
                   <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
                     <Users className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="bg-muted px-4 py-3 rounded-2xl rounded-tl-sm max-w-[80%] text-sm sm:text-base">
-                    "What is the total number of healthy cultures in Growth Room A right now?"
+                    "What is the total number of bottles produced in the Multiplication stage recently?"
                   </div>
                 </div>
                 <div className="flex items-start gap-4 flex-row-reverse">
@@ -195,12 +199,12 @@ export default function Landing() {
                     <Bot className="h-5 w-5 text-emerald-500" />
                   </div>
                   <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 rounded-2xl rounded-tr-sm max-w-[80%] text-sm sm:text-base">
-                    <p className="mb-2">Based on the live database, there are currently <strong>12,450 healthy cultures</strong> in Growth Room A.</p>
-                    <p className="text-xs opacity-80">Connected to live sensors and recent technician logs.</p>
+                    <p className="mb-2">Based on the live database, there have been <strong>12,450 bottles produced</strong> in the Multiplication stage over the last 30 days.</p>
+                    <p className="text-xs opacity-80">Connected to recent technician logs.</p>
                   </div>
                 </div>
 
-                {/* Second exchange — action tool: send weekly report */}
+                {/* Second exchange — Action tool: send weekly report */}
                 <div className="flex items-start gap-4 pt-1">
                   <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
                     <Users className="h-5 w-5 text-muted-foreground" />
@@ -224,17 +228,17 @@ export default function Landing() {
                     <p className="mb-2">
                       The <strong>weekly lab performance report (PDF)</strong> has been sent to your inbox — covering production, contamination events, inventory alerts, and team activity for the past 7 days.
                     </p>
-                    <p className="text-xs opacity-70">Automated digest — no manual export needed.</p>
+                    <p className="text-xs opacity-70">Automated Celery worker task executed successfully.</p>
                   </div>
                 </div>
 
-                {/* Third exchange — batch personnel lookup */}
+                {/* Third exchange — RAG Pipeline SOP query */}
                 <div className="flex items-start gap-4 pt-1">
                   <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
                     <Users className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="bg-muted px-4 py-3 rounded-2xl rounded-tl-sm max-w-[80%] text-sm sm:text-base">
-                    "Did Satyam prepare the media for batch SOWBKP_26?"
+                    "What is the SOP for handling a sodium hypochlorite spill?"
                   </div>
                 </div>
                 <div className="flex items-start gap-4 flex-row-reverse">
@@ -243,10 +247,40 @@ export default function Landing() {
                   </div>
                   <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 rounded-2xl rounded-tr-sm max-w-[80%] text-sm sm:text-base">
                     <p className="mb-2">
-                      No — batch <strong>SOWBKP_26</strong> was prepared by <strong>Priya Sharma</strong> on <strong>14 May 2026</strong>.
-                      It used <strong>MS Medium</strong>, yielded <strong>320 bottles</strong>, and <strong>298 were issued</strong> the following day.
+                      According to the <strong>Laboratory Safety MSDS (Page 14)</strong> retrieved from Azure Blob:
                     </p>
-                    <p className="text-xs opacity-70">Satyam has no recorded involvement in this batch.</p>
+                    <ul className="list-disc list-inside text-sm space-y-1 mb-2">
+                      <li>Evacuate the immediate area.</li>
+                      <li>Wear appropriate PPE (gloves, goggles).</li>
+                      <li>Neutralize the spill with sodium thiosulfate.</li>
+                      <li>Wipe from the outside in to prevent spreading.</li>
+                    </ul>
+                    <p className="text-xs opacity-70">Retrieved via FAISS Vector Database similarity search.</p>
+                  </div>
+                </div>
+
+                {/* Fourth exchange — Chart Visualization query */}
+                <div className="flex items-start gap-4 pt-1">
+                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="bg-muted px-4 py-3 rounded-2xl rounded-tl-sm max-w-[80%] text-sm sm:text-base">
+                    "Plot a pie chart of contamination events by variety over the last month."
+                  </div>
+                </div>
+                <div className="flex items-start gap-4 flex-row-reverse">
+                  <div className="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                    <Bot className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 rounded-2xl rounded-tr-sm max-w-[80%] text-sm sm:text-base w-full max-w-[320px]">
+                    <div className="h-32 w-full flex items-center justify-center bg-background/50 rounded-lg border border-border/50 mb-3">
+                      <PieChart className="h-12 w-12 text-emerald-500/50" />
+                      <span className="ml-2 text-xs text-muted-foreground font-medium uppercase tracking-wider">Interactive Chart Rendered</span>
+                    </div>
+                    <p className="mb-1 text-sm">
+                      Based on the live database, <strong>Variety SC-001</strong> has the highest contamination rate (45%), followed by <strong>Variety VD-201</strong> (30%).
+                    </p>
+                    <p className="text-xs opacity-70">Generated using Recharts from live SQL metrics.</p>
                   </div>
                 </div>
               </div>

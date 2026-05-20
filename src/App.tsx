@@ -10,19 +10,15 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 
 import Dashboard from "./pages/Dashboard";
-import ContaminationMonitoring from "./pages/ContaminationMonitoring";
-import MediaPreparation from "./pages/MediaPreparation";
-import GrowthRoom from "./pages/GrowthRoom";
-import InoculationRoom from "./pages/InoculationRoom";
+import DailyProduction from "./pages/DailyProduction";
 import Chemicals from "./pages/Chemicals";
-import ContaminationReports from "./pages/ContaminationReports";
-import Greenhouse from "./pages/Greenhouse";
 import MasterData from "./pages/MasterData";
 import UsersPage from "./pages/UsersPage";
+import Expenses from "./pages/Expenses";
 import NotFound from "./pages/NotFound";
 import AIAssistant from "./pages/AIAssistant";
 
-import Settings from "./pages/Settings";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -52,16 +48,13 @@ const App = () => (
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
 
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/contamination-monitoring" element={<ProtectedRoute><ContaminationMonitoring /></ProtectedRoute>} />
-            <Route path="/media-preparation" element={<ProtectedRoute><MediaPreparation /></ProtectedRoute>} />
-            <Route path="/growth-room" element={<ProtectedRoute><GrowthRoom /></ProtectedRoute>} />
-            <Route path="/inoculation-room" element={<ProtectedRoute><InoculationRoom /></ProtectedRoute>} />
+            <Route path="/daily-production" element={<ProtectedRoute><DailyProduction /></ProtectedRoute>} />
+
             <Route path="/chemicals" element={<ProtectedRoute><Chemicals /></ProtectedRoute>} />
-            <Route path="/contamination-reports" element={<ProtectedRoute><ContaminationReports /></ProtectedRoute>} />
-            <Route path="/greenhouse" element={<ProtectedRoute><Greenhouse /></ProtectedRoute>} />
+            <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
             <Route path="/master-data" element={<ProtectedRoute adminOnly><MasterData /></ProtectedRoute>} />
             <Route path="/users" element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/ai-assistant" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -4,50 +4,40 @@ import {
   usersApi,
   areasApi,
   varietiesApi,
-  mediaTypesApi,
   findingTypesApi,
   chemicalsApi,
-  mediaPreparationsApi,
   stockSolutionsApi,
   stockPreparationsApi,
-  mediaChemicalRequirementsApi,
-  chemicalUsageLogsApi,
-  contaminationMonitoringApi,
-  contaminationReportsApi,
-  inoculationRoomApi,
-  growthRoomApi,
-  greenhouseApi,
+  stockRecipeItemsApi,
+  initiationApi,
+  multiplicationApi,
+  rootingApi,
+  hardeningApi,
+  transplantationApi,
   recentActivityApi,
+  expenseCategoriesApi,
+  expensesApi,
   type PaginatedResponse,
   type User,
   type UserCreate,
   type Area,
   type Variety,
-  type MediaType,
   type FindingType,
   type Chemical,
   type ChemicalCreate,
-  type MediaPreparation,
-  type MediaPreparationCreate,
-  type ContaminationMonitoring,
-  type ContaminationMonitoringCreate,
-  type ContaminationReport,
-  type ContaminationReportCreate,
-  type InoculationRoom,
-  type InoculationRoomCreate,
-  type GrowthRoom,
-  type GrowthRoomCreate,
-  type Greenhouse,
-  type GreenhouseCreate,
-  type MediaChemicalRequirement,
-  type MediaChemicalRequirementCreate,
-  type ChemicalUsageLog,
+  type InitiationLog, type InitiationLogCreate, type MultiplicationLog, type MultiplicationLogCreate, type RootingLog, type RootingLogCreate, type HardeningLog, type HardeningLogCreate, type TransplantationLog, type TransplantationLogCreate,
   type StockSolution,
   type StockSolutionCreate,
   type StockSolutionPreparation,
   type StockSolutionPreparationCreate,
+  type StockSolutionRecipeItem,
+  type StockSolutionRecipeItemCreate,
   type RecentActivityCreate,
   type DashboardResponse,
+  type ExpenseCategory,
+  type ExpenseCategoryCreate,
+  type Expense,
+  type ExpenseCreate
 } from '@/lib/api';
 
 // ============================================
@@ -162,37 +152,6 @@ export function useDeleteVariety() {
   });
 }
 
-export function useMediaTypes(params?: Record<string, string | number>) {
-  return useQuery<PaginatedResponse<MediaType>>({
-    queryKey: ['media-types', params],
-    queryFn: () => mediaTypesApi.getAll(params),
-  });
-}
-
-export function useCreateMediaType() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: Partial<MediaType>) => mediaTypesApi.create(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-types'] }),
-  });
-}
-
-export function useUpdateMediaType() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<MediaType> }) => 
-      mediaTypesApi.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-types'] }),
-  });
-}
-
-export function useDeleteMediaType() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => mediaTypesApi.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-types'] }),
-  });
-}
 
 export function useFindingTypes(params?: Record<string, string | number>) {
   return useQuery<PaginatedResponse<FindingType>>({
@@ -271,41 +230,6 @@ export function useAdjustChemicalStock() {
 }
 
 // ============================================
-// MEDIA PREPARATION HOOKS
-// ============================================
-export function useMediaPreparations(params?: Record<string, string | number>) {
-  return useQuery<PaginatedResponse<MediaPreparation>>({
-    queryKey: ['media-preparation', params],
-    queryFn: () => mediaPreparationsApi.getAll(params),
-  });
-}
-
-export function useCreateMediaPreparation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: MediaPreparationCreate) => mediaPreparationsApi.create(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-preparation'] }),
-  });
-}
-
-export function useUpdateMediaPreparation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<MediaPreparationCreate> }) => 
-      mediaPreparationsApi.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-preparation'] }),
-  });
-}
-
-export function useDeleteMediaPreparation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => mediaPreparationsApi.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-preparation'] }),
-  });
-}
-
-// ============================================
 // STOCK SOLUTIONS HOOKS
 // ============================================
 export function useStockSolutions(params?: Record<string, string | number>) {
@@ -371,240 +295,57 @@ export function useDeleteStockPreparation() {
 }
 
 // ============================================
-// MEDIA CHEMICAL REQUIREMENTS HOOKS
+// STOCK RECIPES HOOKS
 // ============================================
-export function useMediaChemicalRequirements(params?: Record<string, string | number>) {
-  return useQuery<PaginatedResponse<MediaChemicalRequirement>>({
-    queryKey: ['media-chemical-requirements', params],
-    queryFn: () => mediaChemicalRequirementsApi.getAll(params),
+export function useStockRecipeItems(params?: Record<string, string | number>) {
+  return useQuery<PaginatedResponse<StockSolutionRecipeItem>>({
+    queryKey: ['stock-recipes', params],
+    queryFn: () => stockRecipeItemsApi.getAll(params),
   });
 }
 
-export function useMediaChemicalRequirementsByMediaType(mediaTypeId: number) {
-  return useQuery<PaginatedResponse<MediaChemicalRequirement>>({
-    queryKey: ['media-chemical-requirements', { media_type: mediaTypeId }],
-    queryFn: () => mediaChemicalRequirementsApi.getAll({ media_type: mediaTypeId }),
-    enabled: !!mediaTypeId,
-  });
-}
-
-export function useCreateMediaChemicalRequirement() {
+export function useCreateStockRecipeItem() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: MediaChemicalRequirementCreate) => mediaChemicalRequirementsApi.create(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-chemical-requirements'] }),
+    mutationFn: (data: StockSolutionRecipeItemCreate) => stockRecipeItemsApi.create(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['stock-recipes'] }),
   });
 }
 
-export function useUpdateMediaChemicalRequirement() {
+export function useUpdateStockRecipeItem() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<MediaChemicalRequirementCreate> }) =>
-      mediaChemicalRequirementsApi.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-chemical-requirements'] }),
+    mutationFn: ({ id, data }: { id: number; data: Partial<StockSolutionRecipeItemCreate> }) =>
+      stockRecipeItemsApi.update(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['stock-recipes'] }),
   });
 }
 
-export function useDeleteMediaChemicalRequirement() {
+export function useDeleteStockRecipeItem() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => mediaChemicalRequirementsApi.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['media-chemical-requirements'] }),
+    mutationFn: (id: number) => stockRecipeItemsApi.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['stock-recipes'] }),
   });
 }
 
 // ============================================
-// CHEMICAL USAGE LOGS HOOKS
+// DAILY PRODUCTION HOOKS
 // ============================================
-export function useChemicalUsageLogs(params?: Record<string, string | number>) {
-  return useQuery<PaginatedResponse<ChemicalUsageLog>>({
-    queryKey: ['chemical-usage-logs', params],
-    queryFn: () => chemicalUsageLogsApi.getAll(params),
-  });
-}
+export function useInitiationLogs(params?: Record<string, string | number>) { return useQuery({ queryKey: ['initiation', params], queryFn: () => initiationApi.getAll(params) }); }
+export function useCreateInitiationLog() { const qc = useQueryClient(); return useMutation({ mutationFn: (d: InitiationLogCreate) => initiationApi.create(d), onSuccess: () => qc.invalidateQueries({queryKey:['initiation']}) }); }
 
-export function useChemicalUsageLogsByMediaPrep(mediaPrepId: number) {
-  return useQuery<PaginatedResponse<ChemicalUsageLog>>({
-    queryKey: ['chemical-usage-logs', { media_preparation: mediaPrepId }],
-    queryFn: () => chemicalUsageLogsApi.getAll({ media_preparation: mediaPrepId }),
-    enabled: !!mediaPrepId,
-  });
-}
+export function useMultiplicationLogs(params?: Record<string, string | number>) { return useQuery({ queryKey: ['multiplication', params], queryFn: () => multiplicationApi.getAll(params) }); }
+export function useCreateMultiplicationLog() { const qc = useQueryClient(); return useMutation({ mutationFn: (d: MultiplicationLogCreate) => multiplicationApi.create(d), onSuccess: () => qc.invalidateQueries({queryKey:['multiplication']}) }); }
 
-// ============================================
-// CONTAMINATION MONITORING HOOKS
-// ============================================
-export function useContaminationMonitoring(params?: Record<string, string | number>) {
-  return useQuery<PaginatedResponse<ContaminationMonitoring>>({
-    queryKey: ['contamination-monitoring', params],
-    queryFn: () => contaminationMonitoringApi.getAll(params),
-  });
-}
+export function useRootingLogs(params?: Record<string, string | number>) { return useQuery({ queryKey: ['rooting', params], queryFn: () => rootingApi.getAll(params) }); }
+export function useCreateRootingLog() { const qc = useQueryClient(); return useMutation({ mutationFn: (d: RootingLogCreate) => rootingApi.create(d), onSuccess: () => qc.invalidateQueries({queryKey:['rooting']}) }); }
 
-export function useCreateContaminationMonitoring() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: ContaminationMonitoringCreate) => contaminationMonitoringApi.create(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contamination-monitoring'] }),
-  });
-}
+export function useHardeningLogs(params?: Record<string, string | number>) { return useQuery({ queryKey: ['hardening', params], queryFn: () => hardeningApi.getAll(params) }); }
+export function useCreateHardeningLog() { const qc = useQueryClient(); return useMutation({ mutationFn: (d: HardeningLogCreate) => hardeningApi.create(d), onSuccess: () => qc.invalidateQueries({queryKey:['hardening']}) }); }
 
-export function useUpdateContaminationMonitoring() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<ContaminationMonitoringCreate> }) => 
-      contaminationMonitoringApi.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contamination-monitoring'] }),
-  });
-}
-
-export function useDeleteContaminationMonitoring() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => contaminationMonitoringApi.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contamination-monitoring'] }),
-  });
-}
-
-// ============================================
-// CONTAMINATION REPORTS HOOKS
-// ============================================
-export function useContaminationReports(params?: Record<string, string | number>) {
-  return useQuery<PaginatedResponse<ContaminationReport>>({
-    queryKey: ['contamination-reports', params],
-    queryFn: () => contaminationReportsApi.getAll(params),
-  });
-}
-
-export function useCreateContaminationReport() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: ContaminationReportCreate) => contaminationReportsApi.create(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contamination-reports'] }),
-  });
-}
-
-export function useUpdateContaminationReport() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<ContaminationReportCreate> }) => 
-      contaminationReportsApi.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contamination-reports'] }),
-  });
-}
-
-export function useDeleteContaminationReport() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => contaminationReportsApi.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contamination-reports'] }),
-  });
-}
-
-// ============================================
-// INOCULATION ROOM HOOKS
-// ============================================
-export function useInoculationRoom(params?: Record<string, string | number>) {
-  return useQuery<PaginatedResponse<InoculationRoom>>({
-    queryKey: ['inoculation-room', params],
-    queryFn: () => inoculationRoomApi.getAll(params),
-  });
-}
-
-export function useCreateInoculationRoom() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: InoculationRoomCreate) => inoculationRoomApi.create(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['inoculation-room'] }),
-  });
-}
-
-export function useUpdateInoculationRoom() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<InoculationRoomCreate> }) => 
-      inoculationRoomApi.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['inoculation-room'] }),
-  });
-}
-
-export function useDeleteInoculationRoom() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => inoculationRoomApi.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['inoculation-room'] }),
-  });
-}
-
-// ============================================
-// GROWTH ROOM HOOKS
-// ============================================
-export function useGrowthRoom(params?: Record<string, string | number>) {
-  return useQuery<PaginatedResponse<GrowthRoom>>({
-    queryKey: ['growth-room', params],
-    queryFn: () => growthRoomApi.getAll(params),
-  });
-}
-
-export function useCreateGrowthRoom() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: GrowthRoomCreate) => growthRoomApi.create(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['growth-room'] }),
-  });
-}
-
-export function useUpdateGrowthRoom() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<GrowthRoomCreate> }) => 
-      growthRoomApi.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['growth-room'] }),
-  });
-}
-
-export function useDeleteGrowthRoom() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => growthRoomApi.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['growth-room'] }),
-  });
-}
-
-// ============================================
-// GREENHOUSE HOOKS
-// ============================================
-export function useGreenhouse(params?: Record<string, string | number>) {
-  return useQuery<PaginatedResponse<Greenhouse>>({
-    queryKey: ['greenhouse', params],
-    queryFn: () => greenhouseApi.getAll(params),
-  });
-}
-
-export function useCreateGreenhouse() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: GreenhouseCreate) => greenhouseApi.create(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['greenhouse'] }),
-  });
-}
-
-export function useUpdateGreenhouse() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<GreenhouseCreate> }) => 
-      greenhouseApi.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['greenhouse'] }),
-  });
-}
-
-export function useDeleteGreenhouse() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => greenhouseApi.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['greenhouse'] }),
-  });
-}
+export function useTransplantationLogs(params?: Record<string, string | number>) { return useQuery({ queryKey: ['transplantation', params], queryFn: () => transplantationApi.getAll(params) }); }
+export function useCreateTransplantationLog() { const qc = useQueryClient(); return useMutation({ mutationFn: (d: TransplantationLogCreate) => transplantationApi.create(d), onSuccess: () => qc.invalidateQueries({queryKey:['transplantation']}) }); }
 
 // ============================================
 // DASHBOARD QUERIES
@@ -622,5 +363,46 @@ export function useCreateRecentActivity() {
   return useMutation({
     mutationFn: (data: RecentActivityCreate) => recentActivityApi.create(data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['recent-activities'] }),
+  });
+}
+
+// ============================================
+// EXPENSE TRACKING HOOKS
+// ============================================
+export function useExpenseCategories(params?: Record<string, string | number>) {
+  return useQuery({
+    queryKey: ['expense-categories', params],
+    queryFn: () => expenseCategoriesApi.getAll(params),
+  });
+}
+
+export function useCreateExpenseCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: ExpenseCategoryCreate) => expenseCategoriesApi.create(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['expense-categories'] }),
+  });
+}
+
+export function useExpenses(params?: Record<string, string | number>) {
+  return useQuery({
+    queryKey: ['expenses', params],
+    queryFn: () => expensesApi.getAll(params),
+  });
+}
+
+export function useCreateExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: ExpenseCreate) => expensesApi.create(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['expenses'] }),
+  });
+}
+
+export function useDeleteExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => expensesApi.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['expenses'] }),
   });
 }

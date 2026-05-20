@@ -48,12 +48,6 @@ export interface Variety {
   description?: string;
 }
 
-export interface MediaType {
-  id: number;
-  name: string;
-  formulation?: string;
-}
-
 export interface FindingType {
   id: number;
   name: string;
@@ -72,7 +66,9 @@ export interface Chemical {
   expiry_date: string;
   received_date: string;
   remaining_stock: number;
+  unit_price: number;
   supplier?: string;
+  created_at?: string;
 }
 
 export interface ChemicalCreate {
@@ -83,200 +79,26 @@ export interface ChemicalCreate {
   expiry_date: string;
   received_date: string;
   remaining_stock: number;
+  unit_price?: number;
   supplier?: string;
 }
 
-export interface MediaPreparation {
-  id: number;
-  batch_number: string;
-  media_type: number;
-  media_type_name?: string;
-  prep_date: string;
-  quantity: number;
-  bottles_prepared: number;
-  prepared_by: number;
-  prepared_by_name?: string;
-  contamination_notes?: string;
-  bottles_issued: number;
-  issued_date?: string;
-}
 
-export interface MediaPreparationCreate {
-  batch_number: string;
-  media_type: number;
-  prep_date: string;
-  quantity?: number | null;
-  bottles_prepared: number;
-  contamination_notes?: string;
-  bottles_issued?: number;
-  issued_date?: string | null;
-  stock_usages?: { stock_solution: number; volume_consumed: number }[];
-}
+export interface InitiationLog { id: number; variety: number; variety_code?: string; technician: number; technician_name?: string; date: string; bottles_inoculated: number; contaminated_bottles: number; }
+export interface InitiationLogCreate { variety: number; technician: number; date: string; bottles_inoculated: number; contaminated_bottles: number; }
 
-export interface ContaminationMonitoring {
-  id: number;
-  date_time: string;
-  area: number;
-  area_name?: string;
-  plates_exposed: number;
-  observation_datetime: string;
-  colony_count: number;
-  colony_type: string;
-  action_taken?: string;
-  recorded_by: number;
-  recorded_by_name?: string;
-}
+export interface MultiplicationLog { id: number; variety: number; variety_code?: string; technician: number; technician_name?: string; date: string; cycle_number: number; bottles_produced: number; contaminated_bottles: number; }
+export interface MultiplicationLogCreate { variety: number; technician: number; date: string; cycle_number: number; bottles_produced: number; contaminated_bottles: number; }
 
-export interface ContaminationMonitoringCreate {
-  date_time: string;
-  area: number;
-  plates_exposed?: number | null;
-  observation_datetime?: string | null;
-  colony_count: number;
-  colony_type: string;
-  action_taken?: string;
-}
+export interface RootingLog { id: number; variety: number; variety_code?: string; technician: number; technician_name?: string; date: string; basal_bottles: number; rooting_bottles: number; contaminated_bottles: number; }
+export interface RootingLogCreate { variety: number; technician: number; date: string; basal_bottles: number; rooting_bottles: number; contaminated_bottles: number; }
 
-export interface ContaminationReport {
-  id: number;
-  date: string;
-  variety: number;
-  variety_code?: string;
-  source: string;
-  type_desc?: string;
-  bottles_affected: number;
-  operator: number;
-  operator_name?: string;
-  notes?: string;
-}
+export interface HardeningLog { id: number; variety: number; variety_code?: string; technician: number; technician_name?: string; date: string; seedlings_transplanted: number; seedlings_died: number; }
+export interface HardeningLogCreate { variety: number; technician: number; date: string; seedlings_transplanted: number; seedlings_died: number; }
 
-export interface ContaminationReportCreate {
-  date: string;
-  variety: number;
-  source: string;
-  type_desc?: string;
-  bottles_affected: number;
-  operator: number;
-  notes?: string;
-}
+export interface TransplantationLog { id: number; variety: number; variety_code?: string; technician: number; technician_name?: string; date: string; seedlings_transplanted: number; seedlings_died: number; }
+export interface TransplantationLogCreate { variety: number; technician: number; date: string; seedlings_transplanted: number; seedlings_died: number; }
 
-export interface InoculationRoom {
-  id: number;
-  date: string;
-  variety: number;
-  variety_code?: string;
-  operator: number;
-  operator_name?: string;
-  cultures: number;
-  bottles: number;
-  total_produced: number;
-  remarks?: string;
-}
-
-export interface InoculationRoomCreate {
-  date: string;
-  variety: number;
-  operator: number;
-  cultures: number;
-  bottles: number;
-  total_produced: number;
-  remarks?: string;
-}
-
-export interface GrowthRoom {
-  id: number;
-  ltd_date: string;
-  variety: number;
-  variety_code?: string;
-  planning?: string;
-  opening_bottles: number;
-  opening_cultures: number;
-  issued_bottles: number;
-  issued_cultures: number;
-  received_bottles: number;
-  received_cultures: number;
-  contaminated_bottles: number;
-  contaminated_cultures: number;
-  closing_bottles: number;
-  closing_cultures: number;
-  recorded_by: number;
-  recorded_by_name?: string;
-}
-
-export interface GrowthRoomCreate {
-  ltd_date: string;
-  variety: number;
-  planning?: string;
-  opening_bottles: number;
-  opening_cultures: number;
-  issued_bottles: number;
-  issued_cultures: number;
-  received_bottles: number;
-  received_cultures: number;
-  contaminated_bottles: number;
-  contaminated_cultures: number;
-  closing_bottles: number;
-  closing_cultures: number;
-  recorded_by: number;
-}
-
-export interface Greenhouse {
-  id: number;
-  variety: number;
-  variety_code?: string;
-  batch_number: string;
-  transplant_date: string;
-  operation_date: string;
-  operation_description?: string;
-  observation_date: string;
-  findings: number[];
-  finding_names?: string[];
-  plantlets_died: number;
-  recorded_by: number;
-  recorded_by_name?: string;
-}
-
-export interface GreenhouseCreate {
-  variety: number;
-  batch_number: string;
-  transplant_date: string;
-  operation_date: string;
-  operation_description?: string;
-  observation_date: string;
-  findings: number[];
-  plantlets_died: number;
-  recorded_by: number;
-}
-
-// ============================================
-// Media–Chemical Composition & Usage Types
-// ============================================
-export interface MediaChemicalRequirement {
-  id: number;
-  media_type: number;
-  media_type_name?: string;
-  chemical: number;
-  chemical_name?: string;
-  chemical_unit?: string;
-  quantity_required: number;
-}
-
-export interface MediaChemicalRequirementCreate {
-  media_type: number;
-  chemical: number;
-  quantity_required: number;
-}
-
-export interface ChemicalUsageLog {
-  id: number;
-  chemical: number;
-  chemical_name?: string;
-  chemical_unit?: string;
-  media_preparation: number;
-  batch_number?: string;
-  quantity_consumed: number;
-  timestamp: string;
-}
 
 // ============================================
 // Stock Solution Types
@@ -285,6 +107,7 @@ export interface StockSolution {
   id: number;
   name: string;
   description?: string;
+  base_volume: number;
   remaining_volume: number;
   unit: string;
 }
@@ -292,6 +115,7 @@ export interface StockSolution {
 export interface StockSolutionCreate {
   name: string;
   description?: string;
+  base_volume?: number;
   remaining_volume?: number;
   unit?: string;
 }
@@ -319,7 +143,22 @@ export interface StockSolutionPreparationCreate {
   stock_solution: number;
   volume_prepared: number;
   date: string;
-  chemical_usages: { chemical: number; quantity_consumed: number }[];
+}
+
+export interface StockSolutionRecipeItem {
+  id: number;
+  stock_solution: number;
+  stock_solution_name?: string;
+  chemical: number;
+  chemical_name?: string;
+  chemical_unit?: string;
+  quantity_per_unit: number;
+}
+
+export interface StockSolutionRecipeItemCreate {
+  stock_solution: number;
+  chemical: number;
+  quantity_per_unit: number;
 }
 
 // ============================================
@@ -338,30 +177,55 @@ export interface RecentActivityCreate {
 }
 
 export interface DashboardStats {
-  total_chemicals: number;
-  expired_chemicals: number;
-  total_contamination: number;
+  low_stock_chemicals: number;
   total_production: number;
-}
-
-export interface ContaminationByArea {
-  area__name: string;
-  count: number;
-}
-
-export interface ProductionTrend {
-  month: string;
-  total: number;
-}
-
-export interface VarietyDistribution {
-  variety__code: string;
-  count: number;
+  total_cost: number;
+  cost_per_plantlet: number;
+  overall_success_rate: number;
+  total_contamination: number;
 }
 
 export interface DashboardResponse {
   stats: DashboardStats;
-  contamination_by_area: ContaminationByArea[];
-  production_trend: ProductionTrend[];
-  variety_distribution: VarietyDistribution[];
+  variety_distribution: { name: string; value: number }[];
+  success_rate_per_variety: { variety: string; successRate: number }[];
+  production_pipeline: { stage: string; count: number }[];
+  production_trend: { date: string; total: number }[];
+  contamination_by_stage: { name: string; size: number }[];
+  contamination_trend: { date: string; cases: number }[];
+}
+
+// ============================================
+// Expense Tracking Types
+// ============================================
+export interface ExpenseCategory {
+  id: number;
+  name: string;
+  description: string;
+}
+
+export interface ExpenseCategoryCreate {
+  name: string;
+  description?: string;
+}
+
+export interface Expense {
+  id: number;
+  category: number;
+  category_name?: string;
+  amount: number;
+  date: string;
+  description: string;
+  invoice_reference: string;
+  recorded_by: number;
+  recorded_by_name?: string;
+  created_at: string;
+}
+
+export interface ExpenseCreate {
+  category: number;
+  amount: number;
+  date: string;
+  description?: string;
+  invoice_reference?: string;
 }

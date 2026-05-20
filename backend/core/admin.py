@@ -1,15 +1,14 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
-    User, Area, Variety, MediaType, FindingType,
-    Chemical, MediaPreparation, ContaminationMonitoring,
-    ContaminationReport, InoculationRoom, GrowthRoom, Greenhouse,
-    MediaChemicalRequirement, ChemicalUsageLog
+    User, Variety,
+    Chemical, StockSolution, StockSolutionRecipeItem, StockSolutionPreparation, StockSolutionChemicalUsage,
+    InitiationLog, MultiplicationLog, RootingLog, HardeningLog, TransplantationLog
 )
 
 
-class MediaChemicalRequirementInline(admin.TabularInline):
-    model = MediaChemicalRequirement
+class StockSolutionRecipeItemInline(admin.TabularInline):
+    model = StockSolutionRecipeItem
     extra = 1
     autocomplete_fields = ['chemical']
 
@@ -26,86 +25,63 @@ class UserAdmin(BaseUserAdmin):
     )
 
 
-@admin.register(Area)
-class AreaAdmin(admin.ModelAdmin):
-    list_display = ['name', 'description']
-    search_fields = ['name']
-
-
 @admin.register(Variety)
 class VarietyAdmin(admin.ModelAdmin):
     list_display = ['code', 'name', 'description']
     search_fields = ['code', 'name']
 
 
-@admin.register(MediaType)
-class MediaTypeAdmin(admin.ModelAdmin):
-    list_display = ['name', 'description']
-    inlines = [MediaChemicalRequirementInline]
-
-
-@admin.register(FindingType)
-class FindingTypeAdmin(admin.ModelAdmin):
-    list_display = ['name']
-
+@admin.register(StockSolution)
+class StockSolutionAdmin(admin.ModelAdmin):
+    list_display = ['name', 'remaining_volume', 'unit']
+    inlines = [StockSolutionRecipeItemInline]
+    search_fields = ['name']
 
 @admin.register(Chemical)
 class ChemicalAdmin(admin.ModelAdmin):
     list_display = ['name', 'quantity', 'unit', 'remaining_stock', 'expiry_date']
     list_filter = ['unit']
     search_fields = ['name']
-@admin.register(MediaChemicalRequirement)
-class MediaChemicalRequirementAdmin(admin.ModelAdmin):
-    list_display = ['media_type', 'chemical', 'quantity_required']
-    list_filter = ['media_type']
-    search_fields = ['media_type__name', 'chemical__name']
 
+@admin.register(StockSolutionPreparation)
+class StockSolutionPreparationAdmin(admin.ModelAdmin):
+    list_display = ['stock_solution', 'volume_prepared', 'date', 'prepared_by']
+    list_filter = ['stock_solution', 'date']
+    search_fields = ['stock_solution__name']
 
-@admin.register(ChemicalUsageLog)
-class ChemicalUsageLogAdmin(admin.ModelAdmin):
-    list_display = ['chemical', 'media_preparation', 'quantity_consumed', 'timestamp']
-    list_filter = ['chemical', 'timestamp']
-    readonly_fields = ['chemical', 'media_preparation', 'quantity_consumed', 'timestamp']
+@admin.register(StockSolutionChemicalUsage)
+class StockSolutionChemicalUsageAdmin(admin.ModelAdmin):
+    list_display = ['chemical', 'preparation', 'quantity_consumed']
+    list_filter = ['chemical']
+    readonly_fields = ['chemical', 'preparation', 'quantity_consumed']
 
     def has_add_permission(self, request):
         return False
-
     def has_change_permission(self, request, obj=None):
         return False
 
 
-@admin.register(MediaPreparation)
-class MediaPreparationAdmin(admin.ModelAdmin):
-    list_display = ['batch_number', 'media_type', 'prep_date', 'bottles_prepared', 'prepared_by']
-    list_filter = ['media_type', 'prep_date']
-    search_fields = ['batch_number']
-
-
-@admin.register(ContaminationMonitoring)
-class ContaminationMonitoringAdmin(admin.ModelAdmin):
-    list_display = ['date_time', 'area', 'colony_count', 'colony_type', 'recorded_by']
-    list_filter = ['area', 'colony_type']
-
-
-@admin.register(ContaminationReport)
-class ContaminationReportAdmin(admin.ModelAdmin):
-    list_display = ['variety', 'source', 'bottles_affected', 'operator', 'date']
-    list_filter = ['source', 'date']
-
-
-@admin.register(InoculationRoom)
-class InoculationRoomAdmin(admin.ModelAdmin):
-    list_display = ['variety', 'date', 'operator', 'cultures', 'bottles', 'total_produced']
+@admin.register(InitiationLog)
+class InitiationLogAdmin(admin.ModelAdmin):
+    list_display = ['variety', 'date', 'technician', 'bottles_inoculated']
     list_filter = ['variety', 'date']
 
+@admin.register(MultiplicationLog)
+class MultiplicationLogAdmin(admin.ModelAdmin):
+    list_display = ['variety', 'date', 'technician', 'cycle_number', 'bottles_produced']
+    list_filter = ['variety', 'date', 'cycle_number']
 
-@admin.register(GrowthRoom)
-class GrowthRoomAdmin(admin.ModelAdmin):
-    list_display = ['variety', 'ltd_date', 'opening_bottles', 'closing_bottles', 'recorded_by']
-    list_filter = ['variety', 'ltd_date']
+@admin.register(RootingLog)
+class RootingLogAdmin(admin.ModelAdmin):
+    list_display = ['variety', 'date', 'technician', 'rooting_bottles']
+    list_filter = ['variety', 'date']
 
+@admin.register(HardeningLog)
+class HardeningLogAdmin(admin.ModelAdmin):
+    list_display = ['variety', 'date', 'technician', 'seedlings_transplanted']
+    list_filter = ['variety', 'date']
 
-@admin.register(Greenhouse)
-class GreenhouseAdmin(admin.ModelAdmin):
-    list_display = ['variety', 'batch_number', 'operation_date', 'plantlets_died', 'recorded_by']
-    list_filter = ['variety', 'operation_date']
+@admin.register(TransplantationLog)
+class TransplantationLogAdmin(admin.ModelAdmin):
+    list_display = ['variety', 'date', 'technician', 'seedlings_transplanted']
+    list_filter = ['variety', 'date']

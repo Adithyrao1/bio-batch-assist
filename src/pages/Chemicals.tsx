@@ -1,20 +1,25 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useChemicals, useCreateChemical, useUpdateChemical, useDeleteChemical, useAdjustChemicalStock } from "@/hooks/useApiQueries";
+import { 
+  useChemicals, useCreateChemical, useUpdateChemical, useDeleteChemical, useAdjustChemicalStock,
+  useStockPreparations, useDeleteStockPreparation, useStockSolutions
+} from "@/hooks/useApiQueries";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
+import { 
   Loader2, Plus, Minus, FlaskConical, AlertTriangle, ShieldCheck, ShieldAlert,
-  Search, RefreshCw, Pencil, Trash2, CalendarClock, Package,
+  Search, RefreshCw, Pencil, Trash2, CalendarClock, Beaker, FileText 
 } from "lucide-react";
+import { Pagination } from "@/components/Pagination";
 import ChemicalDialog from "@/components/ChemicalDialog";
+import StockPreparationDialog from "@/components/StockPreparationDialog";
 import type { Chemical, ChemicalCreate } from "@/types/api";
 import { FilterBar, type FilterConfig } from "@/components/FilterBar";
+import { cn } from "@/lib/utils";
 
-// ─── helpers ────────────────────────────────────────────────────────────────
 const today = new Date();
 today.setHours(0, 0, 0, 0);
 
@@ -34,7 +39,6 @@ function stockLevel(remaining: number, quantity: number): "critical" | "low" | "
   return "ok";
 }
 
-// ─── StockBar widget ─────────────────────────────────────────────────────────
 function StockBar({ remaining, quantity, id, adjustingId, onAdjust }: {
   remaining: number; quantity: number; id: number;
   adjustingId: number | null; onAdjust: (id: number, delta: number) => void;
@@ -42,38 +46,34 @@ function StockBar({ remaining, quantity, id, adjustingId, onAdjust }: {
   const pct = quantity > 0 ? Math.min((remaining / quantity) * 100, 100) : 0;
   const level = stockLevel(remaining, quantity);
   const barColor =
-    level === "critical" ? "from-red-500 to-rose-600"
-    : level === "low"   ? "from-amber-400 to-orange-500"
-    :                      "from-emerald-400 to-green-500";
+    level === "critical" ? "bg-red-500"
+    : level === "low"   ? "bg-amber-500"
+    :                      "bg-emerald-500";
 
   return (
     <div className="flex items-center gap-2 min-w-[160px]">
-      {/* +/- buttons */}
       <Button size="icon" variant="ghost"
-        className="h-6 w-6 rounded-full border border-border/60 hover:border-rose-400 hover:text-rose-500 shrink-0"
+        className="h-6 w-6 rounded-sm border border-border hover:border-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 shrink-0"
         onClick={(e) => { e.stopPropagation(); onAdjust(id, -1); }}
         disabled={adjustingId === id || remaining <= 0}>
         {adjustingId === id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Minus className="h-3 w-3" />}
       </Button>
-
-      {/* bar + count */}
       <div className="flex-1">
         <div className="flex justify-between items-center mb-0.5">
-          <span className="text-[11px] font-bold tabular-nums text-foreground">{remaining}</span>
-          <span className="text-[10px] text-muted-foreground">/ {quantity}</span>
+          <span className="text-[10px] font-bold tabular-nums text-foreground">{remaining}</span>
+          <span className="text-[9px] text-muted-foreground">/ {quantity}</span>
         </div>
-        <div className="h-1.5 rounded-full bg-muted/60 overflow-hidden">
+        <div className="h-1 rounded-sm bg-muted overflow-hidden">
           <motion.div
-            className={`h-full rounded-full bg-gradient-to-r ${barColor}`}
+            className={cn("h-full rounded-sm", barColor)}
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 0.6, ease: "easeOut" }}
           />
         </div>
       </div>
-
       <Button size="icon" variant="ghost"
-        className="h-6 w-6 rounded-full border border-border/60 hover:border-emerald-400 hover:text-emerald-500 shrink-0"
+        className="h-6 w-6 rounded-sm border border-border hover:border-emerald-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 shrink-0"
         onClick={(e) => { e.stopPropagation(); onAdjust(id, 1); }}
         disabled={adjustingId === id}>
         {adjustingId === id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
@@ -82,20 +82,16 @@ function StockBar({ remaining, quantity, id, adjustingId, onAdjust }: {
   );
 }
 
-// ─── ExpiryCell widget ───────────────────────────────────────────────────────
 function ExpiryCell({ date }: { date: string }) {
   const expired = isExpired(date);
   const days = daysUntilExpiry(date);
   const soon = !expired && days <= 30;
-
   if (expired) {
     return (
       <div className="flex items-center gap-1.5">
         <ShieldAlert className="h-3.5 w-3.5 text-red-500 shrink-0" />
-        <span className="text-red-500 font-semibold text-xs">{date}</span>
-        <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[10px] font-semibold px-1.5 py-0.5">
-          Expired
-        </span>
+        <span className="text-red-500 font-semibold text-[11px]">{date}</span>
+        <span className="inline-flex items-center rounded-sm bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider">Expired</span>
       </div>
     );
   }
@@ -103,97 +99,99 @@ function ExpiryCell({ date }: { date: string }) {
     return (
       <div className="flex items-center gap-1.5">
         <CalendarClock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-        <span className="text-amber-600 dark:text-amber-400 font-medium text-xs">{date}</span>
-        <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-semibold px-1.5 py-0.5">
-          {days}d
-        </span>
+        <span className="text-amber-600 dark:text-amber-400 font-medium text-[11px]">{date}</span>
+        <span className="inline-flex items-center rounded-sm bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider">{days}d</span>
       </div>
     );
   }
   return (
     <div className="flex items-center gap-1.5">
       <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-      <span className="text-xs text-muted-foreground">{date}</span>
+      <span className="text-[11px] text-muted-foreground">{date}</span>
     </div>
   );
 }
 
-// ─── StatCard ────────────────────────────────────────────────────────────────
-function StatCard({ icon: Icon, label, value, sub, colorClass, delay = 0 }: {
-  icon: React.ElementType; label: string; value: string | number; sub?: string;
-  colorClass: string; delay?: number;
+function StatCard({ icon: Icon, label, value, sub, accentClass, delay = 0 }: {
+  icon: React.ElementType; label: string; value: string | number; sub?: string; accentClass: string; delay?: number;
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay }}
-      className="relative group overflow-hidden rounded-2xl border border-border/50 bg-card/70 backdrop-blur-sm p-4 shadow-sm hover:shadow-md transition-shadow cursor-default"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay }}
+      className={cn(
+        "relative overflow-hidden rounded-md border bg-card p-4 shadow-sm border-l-4",
+        accentClass
+      )}
     >
-      <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${colorClass} blur-2xl`} />
-      <div className="relative flex items-start justify-between">
+      <div className="flex items-start justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-          <p className="mt-1 text-2xl font-bold text-foreground tabular-nums">{value}</p>
-          {sub && <p className="mt-0.5 text-[11px] text-muted-foreground">{sub}</p>}
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+          <p className="mt-1 text-xl font-bold text-foreground tabular-nums tracking-tight">{value}</p>
+          {sub && <p className="mt-0.5 text-[10px] text-muted-foreground">{sub}</p>}
         </div>
-        <div className={`rounded-xl p-2 ${colorClass} opacity-80`}>
-          <Icon className="h-4 w-4 text-white" />
+        <div className="rounded-md p-1.5 bg-muted/80">
+          <Icon className="h-4 w-4 text-muted-foreground" />
         </div>
       </div>
     </motion.div>
   );
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
 export default function Chemicals() {
   const { toast } = useToast();
   const { hasPermission } = useAuth();
-  const { data, isLoading, isError, refetch } = useChemicals();
+  
+  const [activeTab, setActiveTab] = useState<"chemicals" | "stocks">("chemicals");
+
+  // Chemicals Hooks
+  const { data: chemData, isLoading: chemLoading, isError: chemError, refetch: refetchChem } = useChemicals({ page_size: 1000 });
   const createChemical = useCreateChemical();
   const updateChemical = useUpdateChemical();
   const deleteChemical = useDeleteChemical();
   const adjustStock = useAdjustChemicalStock();
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
-  const [selectedItem, setSelectedItem] = useState<Chemical | null>(null);
+  // Stock Preparations Hooks
+  const { data: prepData, isLoading: prepLoading, isError: prepError, refetch: refetchPrep } = useStockPreparations({ page_size: 1000 });
+  const { data: masterStocksData } = useStockSolutions({ page_size: 1000 });
+  const deletePrep = useDeleteStockPreparation();
+
+  // States for Chemicals
+  const [isChemDialogOpen, setIsChemDialogOpen] = useState(false);
+  const [chemDialogMode, setChemDialogMode] = useState<"create" | "edit">("create");
+  const [selectedChem, setSelectedChem] = useState<Chemical | null>(null);
   const [adjustingId, setAdjustingId] = useState<number | null>(null);
-  const [search, setSearch] = useState("");
-
-  const allRecords = data?.results ?? [];
-
-  // ── stats ────────────────────────────────────────────────────────────────
-  const totalChemicals = allRecords.length;
-  const totalStock = allRecords.reduce((s, r) => s + r.remaining_stock, 0);
-  const expiredCount = allRecords.filter((r) => isExpired(r.expiry_date)).length;
-  const lowStockCount = allRecords.filter(
-    (r) => stockLevel(r.remaining_stock, r.quantity) !== "ok"
-  ).length;
-
-  // ── filters ──────────────────────────────────────────────────────────────
-  const unitOptions = useMemo(() =>
-    Array.from(new Set(allRecords.map((r) => r.unit).filter(Boolean))) as string[],
-    [allRecords]
-  );
-
-  const filterConfigs: FilterConfig[] = useMemo(() => [
-    { key: "unit", label: "Unit", type: "select", color: "sky", options: unitOptions.map((u) => ({ value: u, label: u })), placeholder: "All units" },
-    { key: "expiry", label: "Expiry Status", type: "select", color: "rose", options: [{ value: "valid", label: "Valid" }, { value: "expired", label: "Expired" }], placeholder: "All" },
-    { key: "stock", label: "Stock Level", type: "select", color: "amber", options: [{ value: "low", label: "Low / Critical (≤30%)" }, { value: "ok", label: "Sufficient (>30%)" }], placeholder: "All" },
-  ], [unitOptions]);
-
+  const [chemSearch, setChemSearch] = useState("");
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
 
-  const filteredData = useMemo(() => {
+  // States for Stock Preps
+  const [isPrepDialogOpen, setIsPrepDialogOpen] = useState(false);
+  const [chemPage, setChemPage] = useState(1);
+  const [prepPage, setPrepPage] = useState(1);
+  const itemsPerPage = 10;
+  
+  const allChemicals = chemData?.results ?? [];
+  const allPreps = prepData?.results ?? [];
+  const masterStocks = masterStocksData?.results ?? [];
+
+  const totalChemicals = allChemicals.length;
+  const expiredCount = allChemicals.filter((r) => isExpired(r.expiry_date)).length;
+  const lowStockCount = allChemicals.filter((r) => stockLevel(r.remaining_stock, r.quantity) !== "ok").length;
+
+  const filterConfigs: FilterConfig[] = useMemo(() => [
+    { key: "expiry", label: "Expiry Status", type: "select", color: "rose", options: [{ value: "valid", label: "Valid" }, { value: "expired", label: "Expired" }], placeholder: "All" },
+    { key: "stock", label: "Stock Level", type: "select", color: "amber", options: [{ value: "low", label: "Low / Critical (≤30%)" }, { value: "ok", label: "Sufficient (>30%)" }], placeholder: "All" },
+  ], []);
+
+  const filteredChemicals = useMemo(() => {
     const todayStr = new Date().toISOString().slice(0, 10);
-    const { unit, expiry, stock } = filterValues;
-    const units = unit ? unit.split(",") : [];
+    const { expiry, stock } = filterValues;
     const expiryVals = expiry ? expiry.split(",") : [];
     const stockVals = stock ? stock.split(",") : [];
-    const q = search.trim().toLowerCase();
-    return allRecords.filter((r) => {
+    const q = chemSearch.trim().toLowerCase();
+    return allChemicals.filter((r) => {
       if (q && !r.name.toLowerCase().includes(q) && !(r.supplier ?? "").toLowerCase().includes(q)) return false;
-      if (units.length > 0 && !units.includes(r.unit)) return false;
       if (expiryVals.includes("expired") && !expiryVals.includes("valid") && r.expiry_date >= todayStr) return false;
       if (expiryVals.includes("valid") && !expiryVals.includes("expired") && r.expiry_date < todayStr) return false;
       const lvl = stockLevel(r.remaining_stock, r.quantity);
@@ -201,9 +199,16 @@ export default function Chemicals() {
       if (stockVals.includes("ok") && !stockVals.includes("low") && lvl !== "ok") return false;
       return true;
     });
-  }, [allRecords, filterValues, search]);
+  }, [allChemicals, filterValues, chemSearch]);
 
-  // ── handlers ──────────────────────────────────────────────────────────────
+  const paginatedChemicals = useMemo(() => {
+    return filteredChemicals.slice((chemPage - 1) * itemsPerPage, chemPage * itemsPerPage);
+  }, [filteredChemicals, chemPage]);
+
+  const paginatedPreps = useMemo(() => {
+    return allPreps.slice((prepPage - 1) * itemsPerPage, prepPage * itemsPerPage);
+  }, [allPreps, prepPage]);
+
   const handleAdjust = async (id: number, delta: number) => {
     try {
       setAdjustingId(id);
@@ -216,7 +221,7 @@ export default function Chemicals() {
     }
   };
 
-  const handleDelete = (item: Chemical) => {
+  const handleChemDelete = (item: Chemical) => {
     if (confirm("Are you sure you want to delete this chemical?")) {
       deleteChemical.mutate(item.id, {
         onSuccess: () => toast({ title: "Deleted", description: "Chemical deleted successfully." }),
@@ -225,13 +230,13 @@ export default function Chemicals() {
     }
   };
 
-  const handleDialogSubmit = async (formData: ChemicalCreate) => {
+  const handleChemSubmit = async (formData: ChemicalCreate) => {
     try {
-      if (dialogMode === "create") {
+      if (chemDialogMode === "create") {
         await createChemical.mutateAsync(formData);
         toast({ title: "Success", description: "Chemical added successfully." });
-      } else if (selectedItem) {
-        await updateChemical.mutateAsync({ id: selectedItem.id, data: formData });
+      } else if (selectedChem) {
+        await updateChemical.mutateAsync({ id: selectedChem.id, data: formData });
         toast({ title: "Success", description: "Chemical updated successfully." });
       }
     } catch (err: any) {
@@ -240,240 +245,281 @@ export default function Chemicals() {
     }
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
+  const handlePrepDelete = (id: number) => {
+    if (confirm("Are you sure you want to delete this log?")) {
+      deletePrep.mutate(id, {
+        onSuccess: () => toast({ title: "Deleted", description: "Log deleted successfully." }),
+        onError: (err) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+      });
+    }
+  };
+
   return (
-    <div className="space-y-6 p-6">
-
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-rose-600 via-red-600 to-orange-500 p-8 shadow-xl"
-      >
-        {/* decorative flask silhouette */}
-        <svg className="absolute right-8 top-1/2 -translate-y-1/2 opacity-10 pointer-events-none" width="160" height="180" viewBox="0 0 160 180" fill="none">
-          <path d="M55 10 L55 70 L10 150 Q5 165 20 170 L140 170 Q155 165 150 150 L105 70 L105 10 Z" stroke="white" strokeWidth="6" fill="none" strokeLinejoin="round"/>
-          <path d="M40 110 Q80 95 120 115" stroke="white" strokeWidth="4" fill="none"/>
-          <circle cx="65" cy="130" r="5" fill="white"/>
-          <circle cx="95" cy="120" r="3.5" fill="white"/>
-          <circle cx="75" cy="145" r="4" fill="white"/>
-          <line x1="55" y1="10" x2="105" y2="10" stroke="white" strokeWidth="6" strokeLinecap="round"/>
-        </svg>
-
-        {/* glow blobs */}
-        <div className="absolute -top-8 -left-8 w-48 h-48 rounded-full bg-red-400/30 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-8 right-32 w-56 h-56 rounded-full bg-orange-400/25 blur-3xl pointer-events-none" />
-
-        <div className="relative">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="rounded-xl bg-white/20 backdrop-blur-sm p-2">
-              <FlaskConical className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-white/70 text-sm font-medium tracking-wide uppercase">Inventory</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-1">Chemicals</h1>
-          <p className="text-white/60 text-sm">Lab reagent stock — track quantities, expiry dates, and supplier info</p>
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Flat Industrial Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">
+            Chemicals & Stocks
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            Track dry chemicals inventory and log stock solution preparations.
+          </p>
         </div>
-      </motion.div>
-
-      {/* ── Stat cards ───────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={FlaskConical} label="Total Chemicals" value={totalChemicals}
-          sub="registered reagents" colorClass="bg-rose-500" delay={0.05} />
-        {/* <StatCard icon={Package} label="Total Stock" value={totalStock}
-          sub="units remaining" colorClass="bg-red-500" delay={0.1} /> */}
-        <StatCard
-          icon={AlertTriangle} label="Low / Critical"
-          value={lowStockCount}
-          sub={lowStockCount > 0 ? "need restocking" : "all sufficient"}
-          colorClass={lowStockCount > 0 ? "bg-amber-500" : "bg-emerald-500"}
-          delay={0.15}
-        />
-        <StatCard
-          icon={CalendarClock} label="Expired"
-          value={expiredCount}
-          sub={expiredCount > 0 ? "require disposal" : "none expired"}
-          colorClass={expiredCount > 0 ? "bg-red-600" : "bg-emerald-500"}
-          delay={0.2}
-        />
       </div>
 
-      {/* ── Filter bar ───────────────────────────────────────────────────── */}
-      <FilterBar
-        filters={filterConfigs}
-        values={filterValues}
-        onChange={(k, v) => setFilterValues((p) => ({ ...p, [k]: v }))}
-        onClear={() => setFilterValues({})}
-        totalCount={allRecords.length}
-        filteredCount={filteredData.length}
-      />
+      {/* Flat Tab Control */}
+      <div className="flex items-center border-b border-border/60 bg-transparent p-0 h-10 space-x-6 overflow-x-auto no-scrollbar">
+        <button
+          onClick={() => setActiveTab("chemicals")}
+          className={`flex items-center gap-2 px-1 pb-3 pt-2 text-xs font-semibold border-b-2 transition-all relative ${
+            activeTab === "chemicals" 
+              ? "border-primary text-foreground" 
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <FlaskConical className="h-3.5 w-3.5" />
+          Chemical Inventory
+        </button>
+        <button
+          onClick={() => setActiveTab("stocks")}
+          className={`flex items-center gap-2 px-1 pb-3 pt-2 text-xs font-semibold border-b-2 transition-all relative ${
+            activeTab === "stocks" 
+              ? "border-primary text-foreground" 
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Beaker className="h-3.5 w-3.5" />
+          Stock Preparations
+        </button>
+      </div>
 
-      {/* ── Table card ───────────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.25 }}
-        className="rounded-2xl border border-border/50 bg-card/80 backdrop-blur-sm shadow-sm overflow-hidden"
-      >
-        {/* toolbar */}
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-border/40">
-          <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Search chemicals or supplier…"
-              value={search} onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 h-8 text-sm bg-background/60"
-            />
-          </div>
+      <AnimatePresence mode="wait">
+        {activeTab === "chemicals" && (
+          <motion.div key="chemicals" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <StatCard icon={FlaskConical} label="Total Chemicals" value={totalChemicals} sub="registered reagents" accentClass="border-l-blue-600" delay={0.05} />
+              <StatCard icon={AlertTriangle} label="Low / Critical" value={lowStockCount} sub={lowStockCount > 0 ? "need restocking" : "all sufficient"} accentClass={lowStockCount > 0 ? "border-l-amber-500" : "border-l-emerald-500"} delay={0.1} />
+              <StatCard icon={CalendarClock} label="Expired" value={expiredCount} sub={expiredCount > 0 ? "require disposal" : "none expired"} accentClass={expiredCount > 0 ? "border-l-red-600" : "border-l-emerald-500"} delay={0.15} />
+            </div>
 
-          <div className="flex items-center gap-1.5 ml-auto">
-            {expiredCount > 0 && (
-              <div className="flex items-center gap-1.5 text-xs text-red-500 font-medium mr-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
-                </span>
-                {expiredCount} expired
+            <FilterBar filters={filterConfigs} values={filterValues} onChange={(k, v) => setFilterValues((p) => ({ ...p, [k]: v }))} onClear={() => setFilterValues({})} totalCount={allChemicals.length} filteredCount={filteredChemicals.length} />
+
+            <div className="rounded-md border bg-card shadow-sm overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4 border-b border-border/40">
+                <div className="relative flex-1 max-w-xs">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input placeholder="Search name or supplier..." value={chemSearch} onChange={(e) => setChemSearch(e.target.value)} className="pl-8 h-9 text-xs bg-background" />
+                </div>
+                <div className="flex items-center justify-between sm:justify-end gap-3 ml-auto w-full sm:w-auto">
+                  {expiredCount > 0 && (
+                    <div className="flex items-center gap-1.5 text-xs text-red-500 font-medium">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                      </span>
+                      {expiredCount} expired
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => refetchChem()} className="h-9 w-9 p-0"><RefreshCw className="h-3.5 w-3.5 text-muted-foreground" /></Button>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{filteredChemicals.length} of {allChemicals.length}</span>
+                    {hasPermission("create") && (
+                      <Button size="sm" className="h-9 text-xs gap-1.5 bg-primary hover:bg-primary/90 text-white" onClick={() => { setChemDialogMode("create"); setSelectedChem(null); setIsChemDialogOpen(true); }}>
+                        <Plus className="h-3.5 w-3.5" /> Add Chemical
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
-            <Button variant="ghost" size="sm" onClick={() => refetch()} className="h-8 w-8 p-0">
-              <RefreshCw className="h-3.5 w-3.5" />
-            </Button>
-            <span className="text-xs text-muted-foreground px-2">
-              {filteredData.length} of {allRecords.length}
-            </span>
-            {hasPermission("create") && (
-              <Button size="sm"
-                className="h-8 gap-1.5 bg-rose-600 hover:bg-rose-700 text-white border-none"
-                onClick={() => { setDialogMode("create"); setSelectedItem(null); setIsDialogOpen(true); }}>
-                <Plus className="h-3.5 w-3.5" /> Add Chemical
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* table */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20 gap-2 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin text-rose-500" />
-            <span className="text-sm">Loading chemicals…</span>
-          </div>
-        ) : isError ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <AlertTriangle className="h-8 w-8 text-red-500" />
-            <p className="text-sm text-muted-foreground">Failed to load chemicals</p>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>
-          </div>
-        ) : filteredData.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-2 text-muted-foreground">
-            <FlaskConical className="h-9 w-9 opacity-20" />
-            <p className="text-sm">No chemicals found</p>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent border-border/40">
-                <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-[200px]">Chemical</TableHead>
-                <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Unit</TableHead>
-                <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Supplier</TableHead>
-                <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Mfg Date</TableHead>
-                <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Expiry</TableHead>
-                <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-[220px]">Remaining Stock</TableHead>
-                <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <AnimatePresence mode="popLayout">
-                {filteredData.map((item, i) => {
-                  const expired = isExpired(item.expiry_date);
-                  const lvl = stockLevel(item.remaining_stock, item.quantity);
-                  const rowTint = expired
-                    ? "hover:bg-red-50/50 dark:hover:bg-red-900/10"
-                    : lvl === "critical"
-                    ? "hover:bg-rose-50/50 dark:hover:bg-rose-900/10"
-                    : "hover:bg-orange-50/30 dark:hover:bg-orange-900/5";
-
-                  return (
-                    <motion.tr key={item.id}
-                      initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }}
-                      transition={{ duration: 0.2, delay: Math.min(i * 0.03, 0.3) }}
-                      className={`group border-b border-border/40 ${rowTint} transition-colors`}>
-
-                      {/* name */}
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="rounded-lg bg-rose-100 dark:bg-rose-900/30 p-1.5 shrink-0">
-                            <FlaskConical className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
-                          </div>
-                          <span className="font-semibold text-sm text-foreground">{item.name}</span>
-                        </div>
-                      </TableCell>
-
-                      {/* unit */}
-                      <TableCell>
-                        <span className="inline-flex items-center rounded-full bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 text-[11px] font-semibold px-2 py-0.5">
-                          {item.unit}
-                        </span>
-                      </TableCell>
-
-                      {/* supplier */}
-                      <TableCell>
-                        <span className="text-xs text-muted-foreground">{item.supplier || "—"}</span>
-                      </TableCell>
-
-                      {/* mfg date */}
-                      <TableCell>
-                        <span className="text-xs text-muted-foreground font-mono">{item.mfg_date}</span>
-                      </TableCell>
-
-                      {/* expiry */}
-                      <TableCell>
-                        <ExpiryCell date={item.expiry_date} />
-                      </TableCell>
-
-                      {/* stock bar */}
-                      <TableCell>
-                        <StockBar
-                          remaining={item.remaining_stock}
-                          quantity={item.quantity}
-                          id={item.id}
-                          adjustingId={adjustingId}
-                          onAdjust={handleAdjust}
-                        />
-                      </TableCell>
-
-                      {/* actions */}
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {hasPermission("edit") && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-rose-500"
-                              onClick={() => { setDialogMode("edit"); setSelectedItem(item); setIsDialogOpen(true); }}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                          {hasPermission("delete") && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-red-600"
-                              onClick={() => handleDelete(item)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </motion.tr>
-                  );
-                })}
-              </AnimatePresence>
-            </TableBody>
-          </Table>
+              
+              {chemLoading ? (
+                <div className="flex items-center justify-center py-20 gap-2 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <span className="text-xs">Loading chemicals...</span>
+                </div>
+              ) : chemError ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <AlertTriangle className="h-8 w-8 text-red-500" />
+                  <p className="text-xs text-muted-foreground">Failed to load chemicals</p>
+                </div>
+              ) : filteredChemicals.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-2 text-muted-foreground">
+                  <FlaskConical className="h-9 w-9 opacity-20" />
+                  <p className="text-xs">No chemicals found</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow className="hover:bg-transparent border-border/40">
+                      <TableHead className="text-xs font-semibold text-muted-foreground w-[200px]">Chemical</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Unit</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Supplier</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Mfg Date</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Expiry</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground w-[220px]">Remaining Stock</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <AnimatePresence mode="popLayout">
+                      {paginatedChemicals.map((item, i) => {
+                        const expired = isExpired(item.expiry_date);
+                        const lvl = stockLevel(item.remaining_stock, item.quantity);
+                        const rowTint = expired 
+                          ? "hover:bg-red-50/50 dark:hover:bg-red-950/10" 
+                          : lvl === "critical" 
+                            ? "hover:bg-rose-50/50 dark:hover:bg-rose-950/10" 
+                            : "hover:bg-muted/40 transition-colors";
+                        return (
+                          <motion.tr 
+                            key={item.id} 
+                            initial={{ opacity: 0, x: -4 }} 
+                            animate={{ opacity: 1, x: 0 }} 
+                            exit={{ opacity: 0, x: 4 }} 
+                            transition={{ duration: 0.15, delay: Math.min(i * 0.02, 0.2) }} 
+                            className={cn("group border-b border-border/45", rowTint)}
+                          >
+                            <TableCell className="py-2.5">
+                              <div className="flex items-center gap-2">
+                                <div className="rounded-md bg-blue-500/10 p-1.5 shrink-0"><FlaskConical className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" /></div>
+                                <span className="font-semibold text-xs text-foreground">{item.name}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-2.5">
+                              <span className="inline-flex items-center rounded-sm bg-sky-500/10 text-sky-700 dark:text-sky-400 text-[10px] font-bold px-2 py-0.5 border border-sky-500/20">{item.unit}</span>
+                            </TableCell>
+                            <TableCell className="py-2.5"><span className="text-xs text-muted-foreground">{item.supplier || "—"}</span></TableCell>
+                            <TableCell className="py-2.5"><span className="text-xs text-muted-foreground font-mono">{item.mfg_date}</span></TableCell>
+                            <TableCell className="py-2.5"><ExpiryCell date={item.expiry_date} /></TableCell>
+                            <TableCell className="py-2.5"><StockBar remaining={item.remaining_stock} quantity={item.quantity} id={item.id} adjustingId={adjustingId} onAdjust={handleAdjust} /></TableCell>
+                            <TableCell className="py-2.5 text-right">
+                              <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {hasPermission("edit") && (
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20" onClick={() => { setChemDialogMode("edit"); setSelectedChem(item); setIsChemDialogOpen(true); }}>
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                                {hasPermission("delete") && (
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20" onClick={() => handleChemDelete(item)}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </motion.tr>
+                        );
+                      })}
+                    </AnimatePresence>
+                  </TableBody>
+                </Table>
+              )}
+              {filteredChemicals.length > 0 && !chemLoading && !chemError && (
+                <Pagination
+                  currentPage={chemPage}
+                  totalPages={Math.ceil(filteredChemicals.length / itemsPerPage)}
+                  onPageChange={setChemPage}
+                  hasNext={chemPage < Math.ceil(filteredChemicals.length / itemsPerPage)}
+                  hasPrevious={chemPage > 1}
+                />
+              )}
+            </div>
+          </motion.div>
         )}
-      </motion.div>
 
-      <ChemicalDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        mode={dialogMode}
-        initialData={selectedItem}
-        onSubmit={handleDialogSubmit}
-      />
+        {activeTab === "stocks" && (
+          <motion.div key="stocks" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="space-y-6">
+            <div className="rounded-md border bg-card shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
+                <div>
+                  <h3 className="text-sm font-semibold">Stock Preparations</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Logs of prepared stock solutions (automatically deducts chemicals)</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => refetchPrep()} className="h-9 w-9 p-0"><RefreshCw className="h-3.5 w-3.5 text-muted-foreground" /></Button>
+                  <Button size="sm" className="h-9 text-xs gap-1.5 bg-primary hover:bg-primary/90 text-white" onClick={() => setIsPrepDialogOpen(true)}>
+                    <Plus className="h-3.5 w-3.5" /> Log Preparation
+                  </Button>
+                </div>
+              </div>
+
+              {prepLoading ? (
+                <div className="flex items-center justify-center py-20 gap-2 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <span className="text-xs">Loading logs...</span>
+                </div>
+              ) : prepError ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <AlertTriangle className="h-8 w-8 text-red-500" />
+                  <p className="text-xs text-muted-foreground">Failed to load logs</p>
+                </div>
+              ) : allPreps.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-2 text-muted-foreground">
+                  <FileText className="h-9 w-9 opacity-20" />
+                  <p className="text-xs">No preparations logged yet</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow className="hover:bg-transparent border-border/40">
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Date</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Stock Solution</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Volume Prepared</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">Prepared By</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <AnimatePresence mode="popLayout">
+                      {paginatedPreps.map((item, i) => (
+                        <motion.tr 
+                          key={item.id} 
+                          initial={{ opacity: 0, x: -4 }} 
+                          animate={{ opacity: 1, x: 0 }} 
+                          exit={{ opacity: 0, x: 4 }} 
+                          transition={{ duration: 0.15, delay: Math.min(i * 0.02, 0.2) }} 
+                          className="group border-b border-border/40 hover:bg-muted/40 transition-colors"
+                        >
+                          <TableCell className="py-2.5"><span className="text-xs font-medium">{item.date}</span></TableCell>
+                          <TableCell className="py-2.5">
+                            <div className="flex items-center gap-2">
+                              <div className="rounded-md bg-blue-500/10 p-1.5 shrink-0"><Beaker className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" /></div>
+                              <span className="font-semibold text-xs">{item.stock_solution_name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-2.5"><span className="font-mono text-xs">{item.volume_prepared}</span></TableCell>
+                          <TableCell className="py-2.5"><span className="text-xs text-muted-foreground">{item.prepared_by_name}</span></TableCell>
+                          <TableCell className="py-2.5 text-right">
+                            <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {hasPermission("delete") && (
+                                <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20" onClick={() => handlePrepDelete(item.id)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </motion.tr>
+                      ))}
+                    </AnimatePresence>
+                  </TableBody>
+                </Table>
+              )}
+              {allPreps.length > 0 && !prepLoading && !prepError && (
+                <Pagination
+                  currentPage={prepPage}
+                  totalPages={Math.ceil(allPreps.length / itemsPerPage)}
+                  onPageChange={setPrepPage}
+                  hasNext={prepPage < Math.ceil(allPreps.length / itemsPerPage)}
+                  hasPrevious={prepPage > 1}
+                />
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <ChemicalDialog open={isChemDialogOpen} onOpenChange={setIsChemDialogOpen} mode={chemDialogMode} initialData={selectedChem} onSubmit={handleChemSubmit} />
+      <StockPreparationDialog open={isPrepDialogOpen} onOpenChange={setIsPrepDialogOpen} selectedStock={null} allStockSolutions={masterStocks} />
     </div>
   );
 }

@@ -31,15 +31,7 @@ class User(AbstractUser):
 # ============================================
 # MASTER DATA / REFERENCE TABLES
 # ============================================
-class Area(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    description = models.CharField(max_length=255, blank=True)
-    
-    def __str__(self):
-        return self.name
-    
-    class Meta:
-        ordering = ['name']
+
 
 
 class Variety(models.Model):
@@ -55,35 +47,16 @@ class Variety(models.Model):
         ordering = ['code']
 
 
-class MediaType(models.Model):
-    name = models.CharField(max_length=100, unique=True)  # MS Medium, B5 Medium, etc.
-    description = models.CharField(max_length=255, blank=True)
-    
-    def __str__(self):
-        return self.name
-    
-    class Meta:
-        ordering = ['name']
-
-
-class FindingType(models.Model):
-    name = models.CharField(max_length=100, unique=True)  # Healthy, Wilting, etc.
-    
-    def __str__(self):
-        return self.name
-    
-    class Meta:
-        ordering = ['name']
-
 
 class StockSolution(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.CharField(max_length=255, blank=True)
+    base_volume = models.DecimalField(max_digits=10, decimal_places=2, default=1.0)
     remaining_volume = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     unit = models.CharField(max_length=20, default='mL')
 
     def __str__(self):
-        return f"{self.name} ({self.remaining_volume} {self.unit})"
+        return f"{self.name} (Base: {self.base_volume} {self.unit}, Remaining: {self.remaining_volume} {self.unit})"
 
     class Meta:
         ordering = ['name']
@@ -100,6 +73,7 @@ class Chemical(models.Model):
     expiry_date = models.DateField(null=True, blank=True)
     received_date = models.DateField(null=True, blank=True)
     remaining_stock = models.DecimalField(max_digits=10, decimal_places=2)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Cost per unit")
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
@@ -115,122 +89,63 @@ class Chemical(models.Model):
         ordering = ['name']
 
 
-class MediaPreparation(models.Model):
-    batch_number = models.CharField(max_length=50, unique=True)
-    media_type = models.ForeignKey(MediaType, on_delete=models.PROTECT)
-    prep_date = models.DateField()
-    quantity = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    bottles_prepared = models.IntegerField()
-    prepared_by = models.ForeignKey('User', on_delete=models.PROTECT, related_name='media_preparations')
-    contamination_notes = models.TextField(blank=True)
-    bottles_issued = models.IntegerField(default=0)
-    issued_date = models.DateField(null=True, blank=True)
+# ============================================
+# PRODUCTION TRACKING MODELS
+# ============================================
+class DailyProductionLog(models.Model):
+    date = models.DateField(default=timezone.now)
+    technician = models.ForeignKey('User', on_delete=models.PROTECT)
+    variety = models.ForeignKey(Variety, on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)
-    
-    def __str__(self):
-        return f"Batch {self.batch_number} - {self.media_type.name}"
-    
+    updated_at = models.DateTimeField(auto_now=True)
+
     class Meta:
-        ordering = ['-prep_date']
+        abstract = True
+        ordering = ['-date']
 
+class InitiationLog(DailyProductionLog):
+    bottles_inoculated = models.IntegerField(default=0, help_text="Meristem Tissue Inoculated (No. of Bottles)")
+    contaminated_bottles = models.IntegerField(default=0, help_text="Contaminated Tubes (Nos)")
 
-class ContaminationMonitoring(models.Model):
-    COLONY_TYPE_CHOICES = [
-        ('Fungal', 'Fungal'),
-        ('Bacterial', 'Bacterial'),
-        ('Yeast', 'Yeast'),
-        ('None', 'None'),
+    def __str__(self):
+        return f"Initiation - {self.variety.code} - {self.date}"
+
+class MultiplicationLog(DailyProductionLog):
+    CYCLE_CHOICES = [
+        (1, 'Ist'),
+        (2, 'IInd'),
+        (3, 'IIIrd'),
+        (4, 'IVth'),
+        (5, 'Vth'),
     ]
-    
-    date_time = models.DateTimeField()
-    area = models.ForeignKey(Area, on_delete=models.PROTECT)
-    plates_exposed = models.IntegerField(null=True, blank=True)
-    observation_datetime = models.DateTimeField(null=True, blank=True)
-    colony_count = models.IntegerField(default=0)
-    colony_type = models.CharField(max_length=20, choices=COLONY_TYPE_CHOICES, default='None')
-    action_taken = models.TextField(blank=True)
-    recorded_by = models.ForeignKey('User', on_delete=models.PROTECT, related_name='contamination_monitorings')
-    created_at = models.DateTimeField(auto_now_add=True)
-    
+    cycle_number = models.IntegerField(choices=CYCLE_CHOICES)
+    bottles_produced = models.IntegerField(default=0, help_text="No. of Bottles")
+    contaminated_bottles = models.IntegerField(default=0, help_text="Contaminated Bottles (Nos)")
+
     def __str__(self):
-        return f"{self.area.name} - {self.date_time.strftime('%Y-%m-%d %H:%M')}"
-    
-    class Meta:
-        ordering = ['-date_time']
+        return f"Multiplication (Cycle {self.cycle_number}) - {self.variety.code} - {self.date}"
 
+class RootingLog(DailyProductionLog):
+    basal_bottles = models.IntegerField(default=0, help_text="Basal (No. of Bottles)")
+    rooting_bottles = models.IntegerField(default=0, help_text="Rooting (No. of Bottles)")
+    contaminated_bottles = models.IntegerField(default=0, help_text="Contaminated Bottles (Nos)")
 
-class ContaminationReport(models.Model):
-    variety = models.ForeignKey(Variety, on_delete=models.PROTECT)
-    source = models.CharField(max_length=50)  # Fungus, Bacteria
-    type_desc = models.CharField(max_length=200, blank=True)
-    bottles_affected = models.IntegerField(null=True, blank=True)
-    operator = models.ForeignKey('User', on_delete=models.PROTECT, related_name='contamination_reports')
-    date = models.DateField()
-    notes = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    
     def __str__(self):
-        return f"{self.variety.code} - {self.source} ({self.date})"
-    
-    class Meta:
-        ordering = ['-date']
+        return f"Rooting - {self.variety.code} - {self.date}"
 
+class HardeningLog(DailyProductionLog):
+    seedlings_transplanted = models.IntegerField(default=0, help_text="Seedling Transplant in Green House (Nos)")
+    seedlings_died = models.IntegerField(default=0, help_text="Seedling Dried in Green House (Nos)")
 
-class InoculationRoom(models.Model):
-    variety = models.ForeignKey(Variety, on_delete=models.PROTECT)
-    date = models.DateField()
-    operator = models.ForeignKey('User', on_delete=models.PROTECT, related_name='inoculations')
-    cultures = models.IntegerField()
-    bottles = models.IntegerField()
-    total_produced = models.IntegerField()
-    remarks = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    
     def __str__(self):
-        return f"{self.variety.code} - {self.date}"
-    
-    class Meta:
-        ordering = ['-date']
+        return f"Hardening - {self.variety.code} - {self.date}"
 
+class TransplantationLog(DailyProductionLog):
+    seedlings_transplanted = models.IntegerField(default=0, help_text="Seedling Transplant in Field (Nos)")
+    seedlings_died = models.IntegerField(default=0, help_text="Seedling Dried in Field (Nos)")
 
-class GrowthRoom(models.Model):
-    variety = models.ForeignKey(Variety, on_delete=models.PROTECT)
-    ltd_date = models.DateField()  # logged transaction date
-    planning = models.CharField(max_length=100, blank=True)
-    opening_bottles = models.IntegerField(default=0)
-    opening_cultures = models.IntegerField(default=0)
-    issued_bottles = models.IntegerField(default=0)
-    issued_cultures = models.IntegerField(default=0)
-    received_bottles = models.IntegerField(default=0)
-    received_cultures = models.IntegerField(default=0)
-    contaminated_bottles = models.IntegerField(default=0)
-    contaminated_cultures = models.IntegerField(default=0)
-    closing_bottles = models.IntegerField(default=0)
-    closing_cultures = models.IntegerField(default=0)
-    recorded_by = models.ForeignKey('User', on_delete=models.PROTECT, related_name='growth_room_entries')
-    created_at = models.DateTimeField(auto_now_add=True)
-    
     def __str__(self):
-        return f"{self.variety.code} - {self.ltd_date}"
-    
-    class Meta:
-        ordering = ['-ltd_date']
-
-
-class Greenhouse(models.Model):
-    variety = models.ForeignKey(Variety, on_delete=models.PROTECT)
-    batch_number = models.CharField(max_length=50, blank=True)
-    transplant_date = models.DateField(null=True, blank=True)
-    operation_date = models.DateField(null=True, blank=True)
-    operation_desc = models.CharField(max_length=200, blank=True)
-    observation_date = models.DateField(null=True, blank=True)
-    findings = models.ManyToManyField(FindingType, blank=True)
-    plantlets_died = models.IntegerField(default=0)
-    recorded_by = models.ForeignKey('User', on_delete=models.PROTECT, related_name='greenhouse_entries')
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    def __str__(self):
-        return f"{self.variety.code} - Batch {self.batch_number}"
+        return f"Transplantation - {self.variety.code} - {self.date}"
     
 class RecentActivity(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recent_activities')
@@ -245,41 +160,26 @@ class RecentActivity(models.Model):
 
 
 # ============================================
-# MEDIA–CHEMICAL COMPOSITION & USAGE
+# STOCK SOLUTION RECIPE & USAGE
 # ============================================
-class MediaChemicalRequirement(models.Model):
-    """Defines how much of a chemical is needed per litre of a given media type."""
-    media_type = models.ForeignKey(MediaType, on_delete=models.CASCADE, related_name='chemical_requirements')
-    chemical = models.ForeignKey(Chemical, on_delete=models.PROTECT, related_name='media_requirements')
-    quantity_required = models.DecimalField(
+
+class StockSolutionRecipeItem(models.Model):
+    """Defines how much of a chemical is needed per unit of a given stock solution."""
+    stock_solution = models.ForeignKey(StockSolution, on_delete=models.CASCADE, related_name='recipe_items')
+    chemical = models.ForeignKey(Chemical, on_delete=models.PROTECT, related_name='stock_recipes')
+    quantity_per_unit = models.DecimalField(
         max_digits=10, decimal_places=4,
-        help_text='Amount of chemical required per litre of media (in chemical\'s own unit)'
+        help_text='Amount of chemical required per unit of stock solution (in chemical\'s own unit)'
     )
 
     class Meta:
-        unique_together = [['media_type', 'chemical']]
-        ordering = ['media_type', 'chemical']
+        unique_together = [['stock_solution', 'chemical']]
+        ordering = ['stock_solution', 'chemical']
 
     def __str__(self):
-        return f"{self.media_type.name} → {self.chemical.name} ({self.quantity_required}/L)"
+        return f"{self.stock_solution.name} → {self.chemical.name} ({self.quantity_per_unit}/unit)"
 
 
-class ChemicalUsageLog(models.Model):
-    """Immutable audit record created whenever chemicals are deducted for a media preparation."""
-    chemical = models.ForeignKey(Chemical, on_delete=models.PROTECT, related_name='usage_logs')
-    media_preparation = models.ForeignKey(MediaPreparation, on_delete=models.CASCADE, related_name='chemical_usage_logs')
-    quantity_consumed = models.DecimalField(max_digits=10, decimal_places=4)
-    timestamp = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['-timestamp']
-
-    def __str__(self):
-        return f"{self.chemical.name} — {self.quantity_consumed} consumed for Batch {self.media_preparation.batch_number}"
-
-# ============================================
-# STOCK SOLUTION USAGE
-# ============================================
 class StockSolutionPreparation(models.Model):
     stock_solution = models.ForeignKey(StockSolution, on_delete=models.PROTECT, related_name='preparations')
     volume_prepared = models.DecimalField(max_digits=10, decimal_places=2)
@@ -294,6 +194,7 @@ class StockSolutionPreparation(models.Model):
         ordering = ['-date', '-created_at']
 
 class StockSolutionChemicalUsage(models.Model):
+    """Immutable audit record created whenever chemicals are deducted for a stock solution preparation."""
     preparation = models.ForeignKey(StockSolutionPreparation, on_delete=models.CASCADE, related_name='chemical_usages')
     chemical = models.ForeignKey(Chemical, on_delete=models.PROTECT, related_name='stock_usage_logs')
     quantity_consumed = models.DecimalField(max_digits=10, decimal_places=4)
@@ -301,10 +202,32 @@ class StockSolutionChemicalUsage(models.Model):
     def __str__(self):
         return f"{self.chemical.name} — {self.quantity_consumed} for {self.preparation}"
 
-class MediaStockUsage(models.Model):
-    media_preparation = models.ForeignKey(MediaPreparation, on_delete=models.CASCADE, related_name='stock_usages')
-    stock_solution = models.ForeignKey(StockSolution, on_delete=models.PROTECT, related_name='media_usage_logs')
-    volume_consumed = models.DecimalField(max_digits=10, decimal_places=2)
-    
+# ============================================
+# EXPENSE TRACKING
+# ============================================
+
+class ExpenseCategory(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name_plural = "Expense Categories"
+        ordering = ['name']
+
     def __str__(self):
-        return f"{self.stock_solution.name} — {self.volume_consumed} consumed for Batch {self.media_preparation.batch_number}"
+        return self.name
+
+class Expense(models.Model):
+    category = models.ForeignKey(ExpenseCategory, on_delete=models.PROTECT, related_name='expenses')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    date = models.DateField(default=timezone.now)
+    description = models.TextField(blank=True)
+    invoice_reference = models.CharField(max_length=100, blank=True)
+    recorded_by = models.ForeignKey('User', on_delete=models.PROTECT, related_name='recorded_expenses')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        return f"{self.category.name} - ${self.amount} on {self.date}"

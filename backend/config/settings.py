@@ -249,14 +249,9 @@ CACHES = {
 from celery.schedules import crontab  # noqa: E402
 
 CELERY_BEAT_SCHEDULE = {
-    # Deletes expired UserOTP rows every hour
-    "cleanup-expired-otps": {
-        "task": "core.tasks.cleanup_expired_otps",
-        "schedule": crontab(minute=0),
-    },
-    # Emails admin users a digest of chemicals expiring in ≤30 days, daily at 8am UTC
-    "chemical-expiry-digest": {
-        "task": "core.tasks.send_chemical_expiry_digest",
+    # Emails admin users a digest of low stock and expiring chemicals, daily at 8am UTC
+    "chemical-inventory-digest": {
+        "task": "core.tasks.send_chemical_inventory_digest",
         "schedule": crontab(hour=8, minute=0),
     },
     # Emails admin a full weekly lab performance digest every Monday at 7am UTC

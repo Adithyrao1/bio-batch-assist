@@ -17,24 +17,19 @@ import random
 import string
 
 from .models import (
-    User, Area, Variety, MediaType, FindingType,
-    Chemical, MediaPreparation, ContaminationMonitoring,
-    ContaminationReport, InoculationRoom, GrowthRoom, Greenhouse,
-    ContaminationReport, InoculationRoom, GrowthRoom, Greenhouse,
-    RecentActivity, MediaChemicalRequirement, ChemicalUsageLog,
-    StockSolution, StockSolutionPreparation, StockSolutionChemicalUsage, MediaStockUsage
+    User, Variety, Chemical,
+    InitiationLog, MultiplicationLog, RootingLog, HardeningLog, TransplantationLog,
+    RecentActivity,
+    StockSolution, StockSolutionPreparation, StockSolutionChemicalUsage, StockSolutionRecipeItem,
+    ExpenseCategory, Expense
 )
 from .serializers import (
-    UserSerializer, UserCreateSerializer, AreaSerializer, VarietySerializer,
-    MediaTypeSerializer, FindingTypeSerializer, ChemicalSerializer,
-    MediaPreparationSerializer, ContaminationMonitoringSerializer,
-    ContaminationReportSerializer, InoculationRoomSerializer,
-    GrowthRoomSerializer, GreenhouseSerializer,
-    ContaminationReportSerializer, InoculationRoomSerializer,
-    GrowthRoomSerializer, GreenhouseSerializer,
+    UserSerializer, UserCreateSerializer, VarietySerializer, ChemicalSerializer,
+    InitiationLogSerializer, MultiplicationLogSerializer,
+    RootingLogSerializer, HardeningLogSerializer, TransplantationLogSerializer,
     UserProfileSerializer, RecentActivitySerializer,
-    MediaChemicalRequirementSerializer, ChemicalUsageLogSerializer,
-    StockSolutionSerializer, StockSolutionPreparationSerializer
+    StockSolutionSerializer, StockSolutionPreparationSerializer, StockSolutionRecipeItemSerializer,
+    ExpenseCategorySerializer, ExpenseSerializer
 )
 
 
@@ -209,28 +204,12 @@ class UserViewSet(viewsets.ModelViewSet):
             return UserCreateSerializer
         return UserSerializer
 
-class AreaViewSet(viewsets.ModelViewSet):
-    queryset = Area.objects.all()
-    serializer_class = AreaSerializer
-    permission_classes = [IsAdminOrReadOnly]
-
-
 class VarietyViewSet(viewsets.ModelViewSet):
     queryset = Variety.objects.all()
     serializer_class = VarietySerializer
     permission_classes = [IsAdminOrReadOnly]
 
 
-class MediaTypeViewSet(viewsets.ModelViewSet):
-    queryset = MediaType.objects.all()
-    serializer_class = MediaTypeSerializer
-    permission_classes = [IsAdminOrReadOnly]
-
-
-class FindingTypeViewSet(viewsets.ModelViewSet):
-    queryset = FindingType.objects.all()
-    serializer_class = FindingTypeSerializer
-    permission_classes = [IsAdminOrReadOnly]
 
 
 # ============================================
@@ -283,120 +262,95 @@ class StockSolutionPreparationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminOrTechnician]
 
     def perform_create(self, serializer):
-        with transaction.atomic():
-            prep = serializer.save(prepared_by=self.request.user)
-            
-            # Increase stock solution volume
-            stock_solution = prep.stock_solution
-            stock_solution.remaining_volume += prep.volume_prepared
-            stock_solution.save(update_fields=['remaining_volume'])
-
-            # Handle chemical usages if any provided
-            chemical_usages_data = self.request.data.get('chemical_usages', [])
-            for usage_data in chemical_usages_data:
-                chemical_id = usage_data.get('chemical')
-                quantity_consumed = usage_data.get('quantity_consumed')
-                
-                if chemical_id and quantity_consumed:
-                    chemical = Chemical.objects.get(id=chemical_id)
-                    StockSolutionChemicalUsage.objects.create(
-                        preparation=prep,
-                        chemical=chemical,
-                        quantity_consumed=quantity_consumed
-                    )
-                    chemical.remaining_stock -= type(chemical.remaining_stock)(str(quantity_consumed))
-                    chemical.save(update_fields=['remaining_stock'])
-
-class MediaPreparationViewSet(viewsets.ModelViewSet):
-    queryset = MediaPreparation.objects.select_related('media_type', 'prepared_by').all()
-    serializer_class = MediaPreparationSerializer
-    permission_classes = [IsAdminOrTechnician]
-
-    def perform_create(self, serializer):
         from rest_framework.exceptions import ValidationError as DRFValidationError
         from decimal import Decimal
 
         with transaction.atomic():
-            # ── Pre-flight: validate stock levels BEFORE saving anything ──────
-            stock_usages_data = self.request.data.get('stock_usages', [])
-            for usage_data in stock_usages_data:
-                stock_solution_id = usage_data.get('stock_solution')
-                volume_consumed = usage_data.get('volume_consumed')
+            # The technician only inputs volume_prepared
+            volume_prepared = Decimal(str(self.request.data.get('volume_prepared', 0)))
+            if volume_prepared <= 0:
+                raise DRFValidationError({"volume_prepared": "Volume must be greater than zero."})
 
-                if stock_solution_id and volume_consumed:
-                    # Lock the row so concurrent requests cannot double-deduct
-                    try:
-                        stock_solution = StockSolution.objects.select_for_update().get(id=stock_solution_id)
-                    except StockSolution.DoesNotExist:
-                        raise DRFValidationError(
-                            {"stock_usages": f"Stock solution with id {stock_solution_id} does not exist."}
-                        )
+            stock_solution_id = self.request.data.get('stock_solution')
+            if not stock_solution_id:
+                raise DRFValidationError({"stock_solution": "Stock solution is required."})
 
-                    requested = Decimal(str(volume_consumed))
-                    if requested <= 0:
-                        raise DRFValidationError(
-                            {"stock_usages": f"Volume consumed must be greater than zero (got {requested})."}
-                        )
+            try:
+                stock_solution = StockSolution.objects.select_for_update().get(id=stock_solution_id)
+            except StockSolution.DoesNotExist:
+                raise DRFValidationError({"stock_solution": "Invalid stock solution."})
 
-                    if stock_solution.remaining_volume < requested:
-                        raise DRFValidationError({
-                            "stock_usages": (
-                                f"Insufficient stock for '{stock_solution.name}'. "
-                                f"Available: {stock_solution.remaining_volume} mL, "
-                                f"Requested: {requested} mL."
-                            )
-                        })
-
-            # ── All checks passed — save media prep and deduct stock ──────────
-            media_prep = serializer.save(prepared_by=self.request.user)
-
-            for usage_data in stock_usages_data:
-                stock_solution_id = usage_data.get('stock_solution')
-                volume_consumed = usage_data.get('volume_consumed')
-
-                if stock_solution_id and volume_consumed:
-                    stock_solution = StockSolution.objects.select_for_update().get(id=stock_solution_id)
-                    requested = Decimal(str(volume_consumed))
-
-                    MediaStockUsage.objects.create(
-                        media_preparation=media_prep,
-                        stock_solution=stock_solution,
-                        volume_consumed=requested,
+            # Fetch the recipe
+            recipe_items = StockSolutionRecipeItem.objects.filter(stock_solution=stock_solution).select_related('chemical')
+            
+            # Pre-flight check: do we have enough raw chemicals?
+            for item in recipe_items:
+                required_amount = (volume_prepared / stock_solution.base_volume) * item.quantity_per_unit
+                # Lock chemical row to avoid race conditions
+                chemical = Chemical.objects.select_for_update().get(id=item.chemical.id)
+                if chemical.remaining_stock < required_amount:
+                    raise DRFValidationError(
+                        f"Insufficient stock for '{chemical.name}'. "
+                        f"Required: {required_amount} {chemical.unit}, "
+                        f"Available: {chemical.remaining_stock} {chemical.unit}."
                     )
-                    stock_solution.remaining_volume -= requested
-                    stock_solution.save(update_fields=['remaining_volume'])
-class ContaminationMonitoringViewSet(viewsets.ModelViewSet):
-    queryset = ContaminationMonitoring.objects.select_related('area', 'recorded_by').all()
-    serializer_class = ContaminationMonitoringSerializer
-    permission_classes = [IsAdminOrTechnician]
 
+            # Pre-flight checks passed, save preparation
+            prep = serializer.save(prepared_by=self.request.user)
+
+            # Deduct chemicals and create usage logs
+            for item in recipe_items:
+                required_amount = (volume_prepared / stock_solution.base_volume) * item.quantity_per_unit
+                chemical = Chemical.objects.select_for_update().get(id=item.chemical.id)
+                
+                # Deduct inventory
+                chemical.remaining_stock -= required_amount
+                chemical.save(update_fields=['remaining_stock'])
+
+                # Log usage
+                StockSolutionChemicalUsage.objects.create(
+                    preparation=prep,
+                    chemical=chemical,
+                    quantity_consumed=required_amount
+                )
+
+            # Increase stock solution inventory
+            stock_solution.remaining_volume += volume_prepared
+            stock_solution.save(update_fields=['remaining_volume'])
+class InitiationLogViewSet(viewsets.ModelViewSet):
+    queryset = InitiationLog.objects.select_related('variety', 'technician').all()
+    serializer_class = InitiationLogSerializer
+    permission_classes = [IsAdminOrTechnician]
     def perform_create(self, serializer):
-        serializer.save(recorded_by=self.request.user)
+        serializer.save(technician=self.request.user)
 
-
-class ContaminationReportViewSet(viewsets.ModelViewSet):
-    queryset = ContaminationReport.objects.select_related('variety', 'operator').all()
-    serializer_class = ContaminationReportSerializer
+class MultiplicationLogViewSet(viewsets.ModelViewSet):
+    queryset = MultiplicationLog.objects.select_related('variety', 'technician').all()
+    serializer_class = MultiplicationLogSerializer
     permission_classes = [IsAdminOrTechnician]
+    def perform_create(self, serializer):
+        serializer.save(technician=self.request.user)
 
-
-class InoculationRoomViewSet(viewsets.ModelViewSet):
-    queryset = InoculationRoom.objects.select_related('variety', 'operator').all()
-    serializer_class = InoculationRoomSerializer
+class RootingLogViewSet(viewsets.ModelViewSet):
+    queryset = RootingLog.objects.select_related('variety', 'technician').all()
+    serializer_class = RootingLogSerializer
     permission_classes = [IsAdminOrTechnician]
+    def perform_create(self, serializer):
+        serializer.save(technician=self.request.user)
 
-
-class GrowthRoomViewSet(viewsets.ModelViewSet):
-    queryset = GrowthRoom.objects.select_related('variety', 'recorded_by').all()
-    serializer_class = GrowthRoomSerializer
+class HardeningLogViewSet(viewsets.ModelViewSet):
+    queryset = HardeningLog.objects.select_related('variety', 'technician').all()
+    serializer_class = HardeningLogSerializer
     permission_classes = [IsAdminOrTechnician]
+    def perform_create(self, serializer):
+        serializer.save(technician=self.request.user)
 
-
-class GreenhouseViewSet(viewsets.ModelViewSet):
-    queryset = Greenhouse.objects.select_related('variety', 'recorded_by').prefetch_related('findings').all()
-    serializer_class = GreenhouseSerializer
+class TransplantationLogViewSet(viewsets.ModelViewSet):
+    queryset = TransplantationLog.objects.select_related('variety', 'technician').all()
+    serializer_class = TransplantationLogSerializer
     permission_classes = [IsAdminOrTechnician]
-
+    def perform_create(self, serializer):
+        serializer.save(technician=self.request.user)
 
 class RecentActivityViewSet(viewsets.ModelViewSet):
     queryset = RecentActivity.objects.select_related('user').all()
@@ -407,34 +361,16 @@ class RecentActivityViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
 
-# ============================================
-# CHEMICAL <-> MEDIA PREPARATION VIEWSETS
-# ============================================
-class MediaChemicalRequirementViewSet(viewsets.ModelViewSet):
-    serializer_class = MediaChemicalRequirementSerializer
+class StockSolutionRecipeItemViewSet(viewsets.ModelViewSet):
+    serializer_class = StockSolutionRecipeItemSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        qs = MediaChemicalRequirement.objects.select_related('media_type', 'chemical').all()
-        media_type = self.request.query_params.get('media_type')
-        if media_type:
-            qs = qs.filter(media_type_id=media_type)
+        qs = StockSolutionRecipeItem.objects.select_related('stock_solution', 'chemical').all()
+        stock_solution = self.request.query_params.get('stock_solution')
+        if stock_solution:
+            qs = qs.filter(stock_solution_id=stock_solution)
         return qs
-
-
-class ChemicalUsageLogViewSet(viewsets.ReadOnlyModelViewSet):
-    serializer_class = ChemicalUsageLogSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        qs = ChemicalUsageLog.objects.select_related('chemical', 'media_preparation').all()
-        media_preparation = self.request.query_params.get('media_preparation')
-        chemical = self.request.query_params.get('chemical')
-        if media_preparation:
-            qs = qs.filter(media_preparation_id=media_preparation)
-        if chemical:
-            qs = qs.filter(chemical_id=chemical)
-        return qs.order_by('-timestamp')
 
 
 # ============================================
@@ -466,49 +402,145 @@ class DashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request):
-        # Get date range from query params (default: last 30 days)
-        days = int(request.query_params.get('days', 30))
-        start_date = timezone.now().date() - timedelta(days=days)
+        days = int(request.query_params.get('days', 0))
+        if days > 0:
+            start_date = timezone.now().date() - timedelta(days=days)
+        else:
+            from datetime import date
+            start_date = date(2000, 1, 1)
         
-        # Stats
-        total_chemicals = Chemical.objects.count()
-        expired_chemicals = Chemical.objects.filter(expiry_date__lt=timezone.now().date()).count()
-        total_contamination = ContaminationMonitoring.objects.filter(date_time__date__gte=start_date).count()
-        total_production = InoculationRoom.objects.filter(date__gte=start_date).aggregate(
-            total=Sum('total_produced')
-        )['total'] or 0
+        from django.db.models import F, Sum, Q
+        from django.db.models.functions import TruncMonth, TruncDay
+        from core.models import StockSolutionChemicalUsage, Expense
         
-        # Contamination by area (heatmap data)
-        contamination_by_area = ContaminationMonitoring.objects.filter(
-            date_time__date__gte=start_date
-        ).values('area__name').annotate(count=Count('id')).order_by('-count')
+        # 1. Low stock chemicals (<= 30% of original quantity OR <= 15 absolute)
+        low_stock_chemicals = Chemical.objects.filter(
+            Q(remaining_stock__lte=F('quantity') * 0.3) | Q(remaining_stock__lte=15)
+        ).count()
         
-        # Production trend by month
-        production_trend = InoculationRoom.objects.filter(
-            date__gte=start_date
-        ).annotate(
-            month=TruncMonth('date')
-        ).values('month').annotate(
-            total=Sum('total_produced')
-        ).order_by('month')
+        # Base queries for the period
+        init_logs = InitiationLog.objects.filter(date__gte=start_date)
+        mult_logs = MultiplicationLog.objects.filter(date__gte=start_date)
+        root_logs = RootingLog.objects.filter(date__gte=start_date)
+        hard_logs = HardeningLog.objects.filter(date__gte=start_date)
+        trans_logs = TransplantationLog.objects.filter(date__gte=start_date)
+
+        # Stage aggregations for Pipeline and Contamination
+        init_prod = init_logs.aggregate(s=Sum('bottles_inoculated'))['s'] or 0
+        init_cont = init_logs.aggregate(s=Sum('contaminated_bottles'))['s'] or 0
         
-        # Variety distribution
-        variety_distribution = InoculationRoom.objects.filter(
-            date__gte=start_date
-        ).values('variety__code').annotate(
-            count=Count('id')
-        ).order_by('-count')
+        mult_prod = mult_logs.aggregate(s=Sum('bottles_produced'))['s'] or 0
+        mult_cont = mult_logs.aggregate(s=Sum('contaminated_bottles'))['s'] or 0
         
+        root_prod = root_logs.aggregate(s=Sum('rooting_bottles'))['s'] or 0
+        root_cont = root_logs.aggregate(s=Sum('contaminated_bottles'))['s'] or 0
+        
+        hard_prod = hard_logs.aggregate(s=Sum('seedlings_transplanted'))['s'] or 0
+        hard_died = hard_logs.aggregate(s=Sum('seedlings_died'))['s'] or 0
+        
+        trans_prod = trans_logs.aggregate(s=Sum('seedlings_transplanted'))['s'] or 0
+        trans_died = trans_logs.aggregate(s=Sum('seedlings_died'))['s'] or 0
+
+        # 6. Production pipeline (Funnel chart)
+        production_pipeline = [
+            {"stage": "Initiation", "count": init_prod},
+            {"stage": "Multiplication", "count": mult_prod},
+            {"stage": "Rooting", "count": root_prod},
+            {"stage": "Hardening", "count": hard_prod},
+            {"stage": "Transplantation", "count": trans_prod},
+        ]
+
+        # 9. Contamination Trend stage-wise (Heatmap/Treemap format)
+        contamination_by_stage = [
+            {"name": "Initiation", "size": init_cont},
+            {"name": "Multiplication", "size": mult_cont},
+            {"name": "Rooting", "size": root_cont},
+            {"name": "Hardening (Mortality)", "size": hard_died},
+            {"name": "Transplantation (Mortality)", "size": trans_died},
+        ]
+        # Filter out 0s for treemap aesthetic
+        contamination_by_stage = [c for c in contamination_by_stage if c["size"] > 0]
+
+        # 4. Cost per plantlet
+        total_indirect = Expense.objects.filter(date__gte=start_date).aggregate(s=Sum('amount'))['s'] or 0
+        chem_usages = StockSolutionChemicalUsage.objects.filter(preparation__date__gte=start_date)
+        total_chem_cost = sum([float(u.quantity_consumed) * float(u.chemical.unit_price) for u in chem_usages.select_related('chemical')])
+        
+        total_cost = float(total_indirect) + total_chem_cost
+        cost_per_plantlet = 0
+        if trans_prod > 0:
+            cost_per_plantlet = total_cost / trans_prod
+
+        # 5. Success rate overall (Survival rate across pipeline approx.)
+        overall_success_rate = 0
+        total_started = init_prod + mult_prod + root_prod + hard_prod + trans_prod
+        total_lost = init_cont + mult_cont + root_cont + hard_died + trans_died
+        if total_started > 0:
+            overall_success_rate = ((total_started - total_lost) / total_started) * 100
+
+        # Success rate per variety
+        variety_success = []
+        varieties = Variety.objects.all()
+        for v in varieties:
+            v_started = (
+                (InitiationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('bottles_inoculated'))['s'] or 0) +
+                (MultiplicationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('bottles_produced'))['s'] or 0) +
+                (RootingLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('rooting_bottles'))['s'] or 0) +
+                (HardeningLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('seedlings_transplanted'))['s'] or 0) +
+                (TransplantationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('seedlings_transplanted'))['s'] or 0)
+            )
+            v_lost = (
+                (InitiationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('contaminated_bottles'))['s'] or 0) +
+                (MultiplicationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('contaminated_bottles'))['s'] or 0) +
+                (RootingLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('contaminated_bottles'))['s'] or 0) +
+                (HardeningLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('seedlings_died'))['s'] or 0) +
+                (TransplantationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('seedlings_died'))['s'] or 0)
+            )
+            if v_started > 0:
+                rate = ((v_started - v_lost) / v_started) * 100
+                variety_success.append({
+                    "variety": v.code,
+                    "successRate": round(rate, 2)
+                })
+
+        # 2. Variety distribution (Transplantation output)
+        variety_distribution = list(
+            trans_logs.values(name=F('variety__code')).annotate(value=Sum('seedlings_transplanted')).order_by('-value')
+        )
+
+        # 8. Production trend (date-wise)
+        trunc_func = TruncDay if days <= 31 else TruncMonth
+        production_trend_qs = trans_logs.annotate(period=trunc_func('date')).values('period').annotate(total=Sum('seedlings_transplanted')).order_by('period')
+        production_trend = [{"date": pt['period'].strftime("%Y-%m-%d"), "total": pt['total']} for pt in production_trend_qs]
+
+        # 9. Contamination trend (date-wise)
+        cont_init = list(init_logs.annotate(period=trunc_func('date')).values('period').annotate(c=Sum('contaminated_bottles')))
+        cont_mult = list(mult_logs.annotate(period=trunc_func('date')).values('period').annotate(c=Sum('contaminated_bottles')))
+        cont_root = list(root_logs.annotate(period=trunc_func('date')).values('period').annotate(c=Sum('contaminated_bottles')))
+        
+        cont_dict = {}
+        for c_list in [cont_init, cont_mult, cont_root]:
+            for item in c_list:
+                period_str = item['period'].strftime("%Y-%m-%d")
+                cont_dict[period_str] = cont_dict.get(period_str, 0) + item['c']
+                
+        contamination_trend = [{"date": k, "cases": v} for k, v in sorted(cont_dict.items())]
+
         return Response({
             'stats': {
-                'total_chemicals': total_chemicals,
-                'expired_chemicals': expired_chemicals,
-                'total_contamination': total_contamination,
-                'total_production': total_production,
+                'low_stock_chemicals': low_stock_chemicals,
+                'total_production': trans_prod,
+                'total_cost': total_cost,
+                'cost_per_plantlet': round(cost_per_plantlet, 2),
+                'overall_success_rate': round(overall_success_rate, 2),
+                'total_contamination': total_lost,
             },
-            'contamination_by_area': list(contamination_by_area),
-            'production_trend': list(production_trend),
-            'variety_distribution': list(variety_distribution),
+            'variety_distribution': variety_distribution,
+            'success_rate_per_variety': variety_success,
+            'production_pipeline': production_pipeline,
+            'production_trend': production_trend,
+            'contamination_by_stage': contamination_by_stage,
+            'contamination_trend': contamination_trend,
         })
 
 
@@ -567,5 +599,40 @@ class AIAssistantView(APIView):
                 {'error': f'Agent error: {str(exc)}'},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+
+# ============================================
+# EXPENSE TRACKING VIEWS
+# ============================================
+class ExpenseCategoryViewSet(viewsets.ModelViewSet):
+    queryset = ExpenseCategory.objects.all()
+    serializer_class = ExpenseCategorySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    # Only admins can edit categories, but all authenticated users can view them
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            from rest_framework.permissions import BasePermission
+            class IsAdminUser(BasePermission):
+                def has_permission(self, request, view):
+                    return bool(request.user and request.user.role == 'admin')
+            return [IsAdminUser()]
+        return super().get_permissions()
+
+class ExpenseViewSet(viewsets.ModelViewSet):
+    queryset = Expense.objects.all().select_related('category', 'recorded_by')
+    serializer_class = ExpenseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            from rest_framework.permissions import BasePermission
+            class IsAdminUser(BasePermission):
+                def has_permission(self, request, view):
+                    return bool(request.user and request.user.role == 'admin')
+            return [IsAdminUser()]
+        return super().get_permissions()
+
+    def perform_create(self, serializer):
+        serializer.save(recorded_by=self.request.user)
 
 # Trigger auto-reloader

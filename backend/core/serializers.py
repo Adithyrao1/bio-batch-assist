@@ -1,10 +1,9 @@
 from rest_framework import serializers
 from .models import (
-    User, Area, Variety, MediaType, FindingType,
-    Chemical, MediaPreparation, ContaminationMonitoring,
-    ContaminationReport, InoculationRoom, GrowthRoom, Greenhouse,
-    RecentActivity, MediaChemicalRequirement, ChemicalUsageLog,
-    StockSolution, StockSolutionPreparation, StockSolutionChemicalUsage, MediaStockUsage
+    User, Variety, Chemical,
+    InitiationLog, MultiplicationLog, RootingLog, HardeningLog, TransplantationLog,
+    RecentActivity, StockSolution, StockSolutionPreparation, StockSolutionChemicalUsage,
+    StockSolutionRecipeItem, ExpenseCategory, Expense
 )
 
 
@@ -37,28 +36,11 @@ class UserCreateSerializer(serializers.ModelSerializer):
 # ============================================
 # MASTER DATA SERIALIZERS
 # ============================================
-class AreaSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Area
-        fields = '__all__'
-
-
 class VarietySerializer(serializers.ModelSerializer):
     class Meta:
         model = Variety
         fields = '__all__'
 
-
-class MediaTypeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MediaType
-        fields = '__all__'
-
-
-class FindingTypeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FindingType
-        fields = '__all__'
 
 
 # ============================================
@@ -72,73 +54,41 @@ class ChemicalSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class MediaStockUsageSerializer(serializers.ModelSerializer):
-    stock_solution_name = serializers.CharField(source='stock_solution.name', read_only=True)
 
-    class Meta:
-        model = MediaStockUsage
-        fields = ['id', 'stock_solution', 'stock_solution_name', 'volume_consumed']
-        read_only_fields = ['id']
-
-class MediaPreparationSerializer(serializers.ModelSerializer):
-    media_type_name = serializers.CharField(source='media_type.name', read_only=True)
-    prepared_by_name = serializers.CharField(source='prepared_by.get_full_name', read_only=True)
-    stock_usages = MediaStockUsageSerializer(many=True, read_only=True)
-    
-    class Meta:
-        model = MediaPreparation
-        fields = '__all__'
-        read_only_fields = ['prepared_by', 'created_at']
-
-
-class ContaminationMonitoringSerializer(serializers.ModelSerializer):
-    area_name = serializers.CharField(source='area.name', read_only=True)
-    recorded_by_name = serializers.CharField(source='recorded_by.get_full_name', read_only=True)
-    
-    class Meta:
-        model = ContaminationMonitoring
-        fields = '__all__'
-        read_only_fields = ['recorded_by', 'created_at']
-
-
-class ContaminationReportSerializer(serializers.ModelSerializer):
+class InitiationLogSerializer(serializers.ModelSerializer):
     variety_code = serializers.CharField(source='variety.code', read_only=True)
-    operator_name = serializers.CharField(source='operator.get_full_name', read_only=True)
-    
+    technician_name = serializers.CharField(source='technician.get_full_name', read_only=True)
     class Meta:
-        model = ContaminationReport
+        model = InitiationLog
         fields = '__all__'
 
-
-class InoculationRoomSerializer(serializers.ModelSerializer):
+class MultiplicationLogSerializer(serializers.ModelSerializer):
     variety_code = serializers.CharField(source='variety.code', read_only=True)
-    operator_name = serializers.CharField(source='operator.get_full_name', read_only=True)
-    
+    technician_name = serializers.CharField(source='technician.get_full_name', read_only=True)
     class Meta:
-        model = InoculationRoom
+        model = MultiplicationLog
         fields = '__all__'
 
-
-class GrowthRoomSerializer(serializers.ModelSerializer):
+class RootingLogSerializer(serializers.ModelSerializer):
     variety_code = serializers.CharField(source='variety.code', read_only=True)
-    recorded_by_name = serializers.CharField(source='recorded_by.get_full_name', read_only=True)
-    
+    technician_name = serializers.CharField(source='technician.get_full_name', read_only=True)
     class Meta:
-        model = GrowthRoom
+        model = RootingLog
         fields = '__all__'
 
-
-class GreenhouseSerializer(serializers.ModelSerializer):
+class HardeningLogSerializer(serializers.ModelSerializer):
     variety_code = serializers.CharField(source='variety.code', read_only=True)
-    recorded_by_name = serializers.CharField(source='recorded_by.get_full_name', read_only=True)
-    finding_names = serializers.SerializerMethodField()
-    
+    technician_name = serializers.CharField(source='technician.get_full_name', read_only=True)
     class Meta:
-        model = Greenhouse
+        model = HardeningLog
         fields = '__all__'
-    
-    def get_finding_names(self, obj):
-        return [f.name for f in obj.findings.all()]
+
+class TransplantationLogSerializer(serializers.ModelSerializer):
+    variety_code = serializers.CharField(source='variety.code', read_only=True)
+    technician_name = serializers.CharField(source='technician.get_full_name', read_only=True)
+    class Meta:
+        model = TransplantationLog
+        fields = '__all__'
 
 
 # ============================================
@@ -167,28 +117,17 @@ class RecentActivitySerializer(serializers.ModelSerializer):
 
 
 # ============================================
-# CHEMICAL ↔ MEDIA PREPARATION SERIALIZERS
+# STOCK SOLUTION RECIPE SERIALIZERS
 # ============================================
-class MediaChemicalRequirementSerializer(serializers.ModelSerializer):
-    media_type_name = serializers.CharField(source='media_type.name', read_only=True)
+class StockSolutionRecipeItemSerializer(serializers.ModelSerializer):
+    stock_solution_name = serializers.CharField(source='stock_solution.name', read_only=True)
     chemical_name = serializers.CharField(source='chemical.name', read_only=True)
     chemical_unit = serializers.CharField(source='chemical.unit', read_only=True)
 
     class Meta:
-        model = MediaChemicalRequirement
-        fields = ['id', 'media_type', 'media_type_name', 'chemical', 'chemical_name', 'chemical_unit', 'quantity_required']
+        model = StockSolutionRecipeItem
+        fields = ['id', 'stock_solution', 'stock_solution_name', 'chemical', 'chemical_name', 'chemical_unit', 'quantity_per_unit']
         read_only_fields = ['id']
-
-
-class ChemicalUsageLogSerializer(serializers.ModelSerializer):
-    chemical_name = serializers.CharField(source='chemical.name', read_only=True)
-    chemical_unit = serializers.CharField(source='chemical.unit', read_only=True)
-    batch_number = serializers.CharField(source='media_preparation.batch_number', read_only=True)
-
-    class Meta:
-        model = ChemicalUsageLog
-        fields = ['id', 'chemical', 'chemical_name', 'chemical_unit', 'media_preparation', 'batch_number', 'quantity_consumed', 'timestamp']
-        read_only_fields = ['id', 'timestamp']
 
 # ============================================
 # STOCK SOLUTION SERIALIZERS
@@ -216,3 +155,20 @@ class StockSolutionPreparationSerializer(serializers.ModelSerializer):
         model = StockSolutionPreparation
         fields = '__all__'
         read_only_fields = ['prepared_by', 'created_at']
+
+# ============================================
+# EXPENSE TRACKING SERIALIZERS
+# ============================================
+class ExpenseCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExpenseCategory
+        fields = '__all__'
+
+class ExpenseSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    recorded_by_name = serializers.CharField(source='recorded_by.get_full_name', read_only=True)
+
+    class Meta:
+        model = Expense
+        fields = '__all__'
+        read_only_fields = ['recorded_by', 'created_at']

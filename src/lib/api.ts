@@ -4,30 +4,17 @@ import type {
   UserCreate,
   Area,
   Variety,
-  MediaType,
   FindingType,
   Chemical,
   ChemicalCreate,
-  MediaPreparation,
-  MediaPreparationCreate,
-  MediaChemicalRequirement,
-  MediaChemicalRequirementCreate,
-  ChemicalUsageLog,
-  ContaminationMonitoring,
-  ContaminationMonitoringCreate,
-  ContaminationReport,
-  ContaminationReportCreate,
-  InoculationRoom,
-  InoculationRoomCreate,
-  GrowthRoom,
-  GrowthRoomCreate,
-  Greenhouse,
-  GreenhouseCreate,
+  InitiationLog, InitiationLogCreate, MultiplicationLog, MultiplicationLogCreate, RootingLog, RootingLogCreate, HardeningLog, HardeningLogCreate, TransplantationLog, TransplantationLogCreate,
   DashboardResponse,
   StockSolution,
   StockSolutionCreate,
   StockSolutionPreparation,
   StockSolutionPreparationCreate,
+  StockSolutionRecipeItem,
+  StockSolutionRecipeItemCreate
 } from '@/types/api';
 
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
@@ -108,18 +95,19 @@ async function refreshToken(): Promise<boolean> {
 // ============================================
 // AUTH API
 // ============================================
-export interface LoginResponse {
-  access: string;
-  refresh: string;
-  user: {
-    id: number;
-    username: string;
-    first_name: string;
-    last_name: string;
-    email: string;
-    role: 'admin' | 'technician' | 'viewer';
-  };
-}
+  export interface LoginResponse {
+    access: string;
+    refresh: string;
+    user: {
+      id: number;
+      username: string;
+      first_name: string;
+      last_name: string;
+      email: string;
+      role: 'admin' | 'technician' | 'viewer';
+      profile_picture?: string | null;
+    };
+  }
 
 export interface SignupData {
   username: string;
@@ -349,28 +337,6 @@ export const authApi = {
     }
     return response.json();
   },
-  async requestSettingsOTP(): Promise<{ message: string }> {
-    const response = await fetchWithAuth('/auth/settings/request-otp/', {
-      method: 'POST',
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to send authorization code');
-    }
-    return response.json();
-  },
-
-  async verifySettingsOTP(otp: string, new_password: string): Promise<{ message: string }> {
-    const response = await fetchWithAuth('/auth/settings/verify-otp/', {
-      method: 'POST',
-      body: JSON.stringify({ otp, new_password }),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to verify authorization code');
-    }
-    return response.json();
-  },
 
   isAuthenticated(): boolean {
     return !!getAccessToken();
@@ -403,7 +369,11 @@ export const authApi = {
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-    throw new Error(error.detail || error.message || JSON.stringify(error));
+    // DRF can return errors as: array ["msg"], object {detail:"msg"}, or field errors {field:["msg"]}
+    if (Array.isArray(error)) {
+      throw new Error(error.join(' '));
+    }
+    throw new Error(error.detail || error.message || Object.values(error).flat().join(' ') || 'Request failed');
   }
   if (response.status === 204) return {} as T;
   return response.json();
@@ -465,7 +435,6 @@ export const usersApi = {
 // ============================================
 export const areasApi = createCrudApi<Area>('areas');
 export const varietiesApi = createCrudApi<Variety>('varieties');
-export const mediaTypesApi = createCrudApi<MediaType>('media-types');
 export const findingTypesApi = createCrudApi<FindingType>('finding-types');
 
 // ============================================
@@ -483,17 +452,18 @@ export const chemicalsApi = {
   },
 };
 
-export const mediaPreparationsApi = createCrudApi<MediaPreparation, MediaPreparationCreate>('media-preparation');
 export const stockSolutionsApi = createCrudApi<StockSolution, StockSolutionCreate>('stock-solutions');
 export const stockPreparationsApi = createCrudApi<StockSolutionPreparation, StockSolutionPreparationCreate>('stock-preparations');
-export const mediaChemicalRequirementsApi = createCrudApi<MediaChemicalRequirement, MediaChemicalRequirementCreate>('media-chemical-requirements');
-export const chemicalUsageLogsApi = createCrudApi<ChemicalUsageLog>('chemical-usage-logs');
-export const contaminationMonitoringApi = createCrudApi<ContaminationMonitoring, ContaminationMonitoringCreate>('contamination-monitoring');
-export const contaminationReportsApi = createCrudApi<ContaminationReport, ContaminationReportCreate>('contamination-reports');
-export const inoculationRoomApi = createCrudApi<InoculationRoom, InoculationRoomCreate>('inoculation-room');
-export const growthRoomApi = createCrudApi<GrowthRoom, GrowthRoomCreate>('growth-room');
-export const greenhouseApi = createCrudApi<Greenhouse, GreenhouseCreate>('greenhouse');
+export const stockRecipeItemsApi = createCrudApi<StockSolutionRecipeItem, StockSolutionRecipeItemCreate>('stock-recipes');
+export const initiationApi = createCrudApi<InitiationLog, InitiationLogCreate>('initiation');
+export const multiplicationApi = createCrudApi<MultiplicationLog, MultiplicationLogCreate>('multiplication');
+export const rootingApi = createCrudApi<RootingLog, RootingLogCreate>('rooting');
+export const hardeningApi = createCrudApi<HardeningLog, HardeningLogCreate>('hardening');
+export const transplantationApi = createCrudApi<TransplantationLog, TransplantationLogCreate>('transplantation');
 export const recentActivityApi = createCrudApi<RecentActivity, RecentActivityCreate>('recent-activity');
+
+export const expenseCategoriesApi = createCrudApi<any, any>('expense-categories');
+export const expensesApi = createCrudApi<any, any>('expenses');
 
 // ============================================
 // TASKS API (admin only)
@@ -529,26 +499,21 @@ export type {
   UserCreate,
   Area,
   Variety,
-  MediaType,
   FindingType,
   Chemical,
   ChemicalCreate,
-  MediaPreparation,
-  MediaPreparationCreate,
-  MediaChemicalRequirement,
-  MediaChemicalRequirementCreate,
-  ChemicalUsageLog,
-  ContaminationMonitoring,
-  ContaminationMonitoringCreate,
-  ContaminationReport,
-  ContaminationReportCreate,
-  InoculationRoom,
-  InoculationRoomCreate,
-  GrowthRoom,
-  GrowthRoomCreate,
-  Greenhouse,
-  GreenhouseCreate,
+  InitiationLog, InitiationLogCreate, MultiplicationLog, MultiplicationLogCreate, RootingLog, RootingLogCreate, HardeningLog, HardeningLogCreate, TransplantationLog, TransplantationLogCreate,
   RecentActivity,
   RecentActivityCreate,
   DashboardResponse,
+  StockSolution,
+  StockSolutionCreate,
+  StockSolutionPreparation,
+  StockSolutionPreparationCreate,
+  StockSolutionRecipeItem,
+  StockSolutionRecipeItemCreate,
+  ExpenseCategory,
+  ExpenseCategoryCreate,
+  Expense,
+  ExpenseCreate
 } from '@/types/api';
