@@ -409,39 +409,211 @@ class DashboardView(APIView):
             from datetime import date
             start_date = date(2000, 1, 1)
         
-        from django.db.models import F, Sum, Q
-        from django.db.models.functions import TruncMonth, TruncDay
-        from core.models import StockSolutionChemicalUsage, Expense
+        from django.db.models import F, Q
+        from core.models import Chemical
+        import duckdb
+        import os
+        from django.conf import settings
         
-        # 1. Low stock chemicals (<= 30% of original quantity OR <= 15 absolute)
+        # 1. Low stock chemicals (keep querying live MySQL since it's real-time inventory count)
         low_stock_chemicals = Chemical.objects.filter(
             Q(remaining_stock__lte=F('quantity') * 0.3) | Q(remaining_stock__lte=15)
         ).count()
         
-        # Base queries for the period
-        init_logs = InitiationLog.objects.filter(date__gte=start_date)
-        mult_logs = MultiplicationLog.objects.filter(date__gte=start_date)
-        root_logs = RootingLog.objects.filter(date__gte=start_date)
-        hard_logs = HardeningLog.objects.filter(date__gte=start_date)
-        trans_logs = TransplantationLog.objects.filter(date__gte=start_date)
+        db_path = os.path.join(settings.BASE_DIR, 'lab_analytics', 'analytics.duckdb')
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        
+        # Initialize default response structures
+        init_prod = init_cont = mult_prod = mult_cont = root_prod = root_cont = 0
+        hard_prod = hard_died = trans_prod = trans_died = 0
+        total_cost = 0.0
+        variety_distribution = []
+        variety_success = []
+        production_trend = []
+        contamination_trend = []
+        
+        # Helper to convert duckdb dates to string format
+        def _fmt_date(d):
+            if hasattr(d, 'strftime'):
+                return d.strftime("%Y-%m-%d")
+            return str(d)
 
-        # Stage aggregations for Pipeline and Contamination
-        init_prod = init_logs.aggregate(s=Sum('bottles_inoculated'))['s'] or 0
-        init_cont = init_logs.aggregate(s=Sum('contaminated_bottles'))['s'] or 0
+        # Flag to track if we successfully loaded from DuckDB
+        duckdb_success = False
         
-        mult_prod = mult_logs.aggregate(s=Sum('bottles_produced'))['s'] or 0
-        mult_cont = mult_logs.aggregate(s=Sum('contaminated_bottles'))['s'] or 0
-        
-        root_prod = root_logs.aggregate(s=Sum('rooting_bottles'))['s'] or 0
-        root_cont = root_logs.aggregate(s=Sum('contaminated_bottles'))['s'] or 0
-        
-        hard_prod = hard_logs.aggregate(s=Sum('seedlings_transplanted'))['s'] or 0
-        hard_died = hard_logs.aggregate(s=Sum('seedlings_died'))['s'] or 0
-        
-        trans_prod = trans_logs.aggregate(s=Sum('seedlings_transplanted'))['s'] or 0
-        trans_died = trans_logs.aggregate(s=Sum('seedlings_died'))['s'] or 0
+        if os.path.exists(db_path):
+            try:
+                con = duckdb.connect(database=db_path, read_only=True)
+                
+                # A. Stage Rollup
+                stage_rows = con.execute(f"""
+                    SELECT stage, SUM(produced_count), SUM(lost_count)
+                    FROM daily_stage_rollup
+                    WHERE date >= '{start_date_str}'
+                    GROUP BY stage
+                """).fetchall()
+                
+                stages = {row[0]: (int(row[1] or 0), int(row[2] or 0)) for row in stage_rows}
+                
+                init_prod, init_cont = stages.get('Initiation', (0, 0))
+                mult_prod, mult_cont = stages.get('Multiplication', (0, 0))
+                root_prod, root_cont = stages.get('Rooting', (0, 0))
+                hard_prod, hard_died = stages.get('Hardening', (0, 0))
+                trans_prod, trans_died = stages.get('Transplantation', (0, 0))
+                
+                # B. Financials (Total Cost)
+                cost_res = con.execute(f"SELECT SUM(total_cost) FROM financials_rollup WHERE date >= '{start_date_str}'").fetchone()
+                total_cost = float(cost_res[0] or 0.0)
+                
+                # C. Variety Distribution
+                dist_rows = con.execute(f"""
+                    SELECT v.code, SUM(r.produced_count)
+                    FROM daily_stage_rollup r
+                    JOIN variety_mappings v ON r.variety_id = v.id
+                    WHERE r.stage = 'Transplantation' AND r.date >= '{start_date_str}'
+                    GROUP BY v.code
+                    ORDER BY 2 DESC
+                """).fetchall()
+                variety_distribution = [{"name": row[0], "value": int(row[1] or 0)} for row in dist_rows]
+                
+                # D. Variety Success Rate
+                var_success_rows = con.execute(f"""
+                    SELECT v.code, SUM(r.produced_count), SUM(r.lost_count)
+                    FROM daily_stage_rollup r
+                    JOIN variety_mappings v ON r.variety_id = v.id
+                    WHERE r.date >= '{start_date_str}'
+                    GROUP BY v.code
+                """).fetchall()
+                
+                for row in var_success_rows:
+                    v_code = row[0]
+                    v_started = int(row[1] or 0)
+                    v_lost = int(row[2] or 0)
+                    if v_started > 0:
+                        rate = ((v_started - v_lost) / v_started) * 100
+                        variety_success.append({
+                            "variety": v_code,
+                            "successRate": round(rate, 2)
+                        })
+                        
+                # E. Production Trend (Transplantation output)
+                trend_rows = con.execute(f"""
+                    SELECT date, SUM(produced_count)
+                    FROM daily_stage_rollup
+                    WHERE stage = 'Transplantation' AND date >= '{start_date_str}'
+                    GROUP BY date
+                    ORDER BY date
+                """).fetchall()
+                production_trend = [{"date": _fmt_date(row[0]), "total": int(row[1] or 0)} for row in trend_rows]
+                
+                # F. Contamination Trend (Initiation, Multiplication, Rooting)
+                cont_rows = con.execute(f"""
+                    SELECT date, SUM(lost_count)
+                    FROM daily_stage_rollup
+                    WHERE stage IN ('Initiation', 'Multiplication', 'Rooting') AND date >= '{start_date_str}'
+                    GROUP BY date
+                    ORDER BY date
+                """).fetchall()
+                contamination_trend = [{"date": _fmt_date(row[0]), "cases": int(row[1] or 0)} for row in cont_rows]
+                
+                con.close()
+                duckdb_success = True
+            except Exception as e:
+                # Log error and fallback to Django ORM
+                import logging
+                logging.getLogger(__name__).error(f"Error querying DuckDB: {e}")
+                duckdb_success = False
 
-        # 6. Production pipeline (Funnel chart)
+        if not duckdb_success:
+            # === FALLBACK TO DJANGO ORM ===
+            from django.db.models import Sum
+            from django.db.models.functions import TruncMonth, TruncDay
+            from core.models import StockSolutionChemicalUsage, Expense, Variety
+            
+            init_logs = InitiationLog.objects.filter(date__gte=start_date)
+            mult_logs = MultiplicationLog.objects.filter(date__gte=start_date)
+            root_logs = RootingLog.objects.filter(date__gte=start_date)
+            hard_logs = HardeningLog.objects.filter(date__gte=start_date)
+            trans_logs = TransplantationLog.objects.filter(date__gte=start_date)
+
+            init_prod = init_logs.aggregate(s=Sum('bottles_inoculated'))['s'] or 0
+            init_cont = init_logs.aggregate(s=Sum('contaminated_bottles'))['s'] or 0
+            
+            mult_prod = mult_logs.aggregate(s=Sum('bottles_produced'))['s'] or 0
+            mult_cont = mult_logs.aggregate(s=Sum('contaminated_bottles'))['s'] or 0
+            
+            root_prod = root_logs.aggregate(s=Sum('rooting_bottles'))['s'] or 0
+            root_cont = root_logs.aggregate(s=Sum('contaminated_bottles'))['s'] or 0
+            
+            hard_prod = hard_logs.aggregate(s=Sum('seedlings_transplanted'))['s'] or 0
+            hard_died = hard_logs.aggregate(s=Sum('seedlings_died'))['s'] or 0
+            
+            trans_prod = trans_logs.aggregate(s=Sum('seedlings_transplanted'))['s'] or 0
+            trans_died = trans_logs.aggregate(s=Sum('seedlings_died'))['s'] or 0
+
+            # Cost
+            total_indirect = Expense.objects.filter(date__gte=start_date).aggregate(s=Sum('amount'))['s'] or 0
+            chem_usages = StockSolutionChemicalUsage.objects.filter(preparation__date__gte=start_date)
+            total_chem_cost = sum([float(u.quantity_consumed) * float(u.chemical.unit_price) for u in chem_usages.select_related('chemical')])
+            total_cost = float(total_indirect) + total_chem_cost
+
+            # Variety success
+            variety_success = []
+            varieties = Variety.objects.all()
+            for v in varieties:
+                v_started = (
+                    (InitiationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('bottles_inoculated'))['s'] or 0) +
+                    (MultiplicationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('bottles_produced'))['s'] or 0) +
+                    (RootingLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('rooting_bottles'))['s'] or 0) +
+                    (HardeningLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('seedlings_transplanted'))['s'] or 0) +
+                    (TransplantationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('seedlings_transplanted'))['s'] or 0)
+                )
+                v_lost = (
+                    (InitiationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('contaminated_bottles'))['s'] or 0) +
+                    (MultiplicationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('contaminated_bottles'))['s'] or 0) +
+                    (RootingLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('contaminated_bottles'))['s'] or 0) +
+                    (HardeningLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('seedlings_died'))['s'] or 0) +
+                    (TransplantationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('seedlings_died'))['s'] or 0)
+                )
+                if v_started > 0:
+                    rate = ((v_started - v_lost) / v_started) * 100
+                    variety_success.append({
+                        "variety": v.code,
+                        "successRate": round(rate, 2)
+                    })
+
+            # Variety distribution
+            variety_distribution = list(
+                trans_logs.values(name=F('variety__code')).annotate(value=Sum('seedlings_transplanted')).order_by('-value')
+            )
+
+            # Trends
+            trunc_func = TruncDay if days <= 31 else TruncMonth
+            production_trend_qs = trans_logs.annotate(period=trunc_func('date')).values('period').annotate(total=Sum('seedlings_transplanted')).order_by('period')
+            production_trend = [{"date": pt['period'].strftime("%Y-%m-%d"), "total": pt['total']} for pt in production_trend_qs]
+
+            cont_init = list(init_logs.annotate(period=trunc_func('date')).values('period').annotate(c=Sum('contaminated_bottles')))
+            cont_mult = list(mult_logs.annotate(period=trunc_func('date')).values('period').annotate(c=Sum('contaminated_bottles')))
+            cont_root = list(root_logs.annotate(period=trunc_func('date')).values('period').annotate(c=Sum('contaminated_bottles')))
+            
+            cont_dict = {}
+            for c_list in [cont_init, cont_mult, cont_root]:
+                for item in c_list:
+                    period_str = item['period'].strftime("%Y-%m-%d")
+                    cont_dict[period_str] = cont_dict.get(period_str, 0) + item['c']
+            contamination_trend = [{"date": k, "cases": v} for k, v in sorted(cont_dict.items())]
+
+        # Calculate shared metrics
+        cost_per_plantlet = 0.0
+        if trans_prod > 0:
+            cost_per_plantlet = total_cost / trans_prod
+
+        overall_success_rate = 0.0
+        total_started = init_prod + mult_prod + root_prod + hard_prod + trans_prod
+        total_lost = init_cont + mult_cont + root_cont + hard_died + trans_died
+        if total_started > 0:
+            overall_success_rate = ((total_started - total_lost) / total_started) * 100
+
         production_pipeline = [
             {"stage": "Initiation", "count": init_prod},
             {"stage": "Multiplication", "count": mult_prod},
@@ -450,7 +622,6 @@ class DashboardView(APIView):
             {"stage": "Transplantation", "count": trans_prod},
         ]
 
-        # 9. Contamination Trend stage-wise (Heatmap/Treemap format)
         contamination_by_stage = [
             {"name": "Initiation", "size": init_cont},
             {"name": "Multiplication", "size": mult_cont},
@@ -458,73 +629,7 @@ class DashboardView(APIView):
             {"name": "Hardening (Mortality)", "size": hard_died},
             {"name": "Transplantation (Mortality)", "size": trans_died},
         ]
-        # Filter out 0s for treemap aesthetic
         contamination_by_stage = [c for c in contamination_by_stage if c["size"] > 0]
-
-        # 4. Cost per plantlet
-        total_indirect = Expense.objects.filter(date__gte=start_date).aggregate(s=Sum('amount'))['s'] or 0
-        chem_usages = StockSolutionChemicalUsage.objects.filter(preparation__date__gte=start_date)
-        total_chem_cost = sum([float(u.quantity_consumed) * float(u.chemical.unit_price) for u in chem_usages.select_related('chemical')])
-        
-        total_cost = float(total_indirect) + total_chem_cost
-        cost_per_plantlet = 0
-        if trans_prod > 0:
-            cost_per_plantlet = total_cost / trans_prod
-
-        # 5. Success rate overall (Survival rate across pipeline approx.)
-        overall_success_rate = 0
-        total_started = init_prod + mult_prod + root_prod + hard_prod + trans_prod
-        total_lost = init_cont + mult_cont + root_cont + hard_died + trans_died
-        if total_started > 0:
-            overall_success_rate = ((total_started - total_lost) / total_started) * 100
-
-        # Success rate per variety
-        variety_success = []
-        varieties = Variety.objects.all()
-        for v in varieties:
-            v_started = (
-                (InitiationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('bottles_inoculated'))['s'] or 0) +
-                (MultiplicationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('bottles_produced'))['s'] or 0) +
-                (RootingLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('rooting_bottles'))['s'] or 0) +
-                (HardeningLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('seedlings_transplanted'))['s'] or 0) +
-                (TransplantationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('seedlings_transplanted'))['s'] or 0)
-            )
-            v_lost = (
-                (InitiationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('contaminated_bottles'))['s'] or 0) +
-                (MultiplicationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('contaminated_bottles'))['s'] or 0) +
-                (RootingLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('contaminated_bottles'))['s'] or 0) +
-                (HardeningLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('seedlings_died'))['s'] or 0) +
-                (TransplantationLog.objects.filter(variety=v, date__gte=start_date).aggregate(s=Sum('seedlings_died'))['s'] or 0)
-            )
-            if v_started > 0:
-                rate = ((v_started - v_lost) / v_started) * 100
-                variety_success.append({
-                    "variety": v.code,
-                    "successRate": round(rate, 2)
-                })
-
-        # 2. Variety distribution (Transplantation output)
-        variety_distribution = list(
-            trans_logs.values(name=F('variety__code')).annotate(value=Sum('seedlings_transplanted')).order_by('-value')
-        )
-
-        # 8. Production trend (date-wise)
-        trunc_func = TruncDay if days <= 31 else TruncMonth
-        production_trend_qs = trans_logs.annotate(period=trunc_func('date')).values('period').annotate(total=Sum('seedlings_transplanted')).order_by('period')
-        production_trend = [{"date": pt['period'].strftime("%Y-%m-%d"), "total": pt['total']} for pt in production_trend_qs]
-
-        # 9. Contamination trend (date-wise)
-        cont_init = list(init_logs.annotate(period=trunc_func('date')).values('period').annotate(c=Sum('contaminated_bottles')))
-        cont_mult = list(mult_logs.annotate(period=trunc_func('date')).values('period').annotate(c=Sum('contaminated_bottles')))
-        cont_root = list(root_logs.annotate(period=trunc_func('date')).values('period').annotate(c=Sum('contaminated_bottles')))
-        
-        cont_dict = {}
-        for c_list in [cont_init, cont_mult, cont_root]:
-            for item in c_list:
-                period_str = item['period'].strftime("%Y-%m-%d")
-                cont_dict[period_str] = cont_dict.get(period_str, 0) + item['c']
-                
-        contamination_trend = [{"date": k, "cases": v} for k, v in sorted(cont_dict.items())]
 
         return Response({
             'stats': {
@@ -542,6 +647,7 @@ class DashboardView(APIView):
             'contamination_by_stage': contamination_by_stage,
             'contamination_trend': contamination_trend,
         })
+
 
 
 # ============================================
