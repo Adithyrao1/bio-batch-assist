@@ -42,6 +42,8 @@ urlpatterns = [
     # Reports
     path('reports/production-excel/', reports_excel.generate_production_excel_report, name='production_excel'),
     path('reports/expenses-excel/', reports_excel.generate_expenses_excel_report, name='expenses_excel'),
+    path('reports/check-status/<str:task_id>/', reports_excel.check_report_status, name='check_report_status'),
+    path('reports/download/<str:task_id>/', reports_excel.download_report_result, name='download_report_result'),
 
     # AI Assistant (LangChain + DeepSeek + MySQL)
     path('ai-assistant/', views.AIAssistantView.as_view(), name='ai_assistant'),
