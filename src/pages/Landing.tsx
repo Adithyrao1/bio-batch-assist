@@ -204,13 +204,13 @@ export default function Landing() {
                   </div>
                 </div>
 
-                {/* Second exchange — Action tool: send weekly report */}
+                {/* Second exchange — Action tool: send progress report */}
                 <div className="flex items-start gap-4 pt-1">
                   <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
                     <Users className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="bg-muted px-4 py-3 rounded-2xl rounded-tl-sm max-w-[80%] text-sm sm:text-base">
-                    "Send me the weekly lab report as a PDF"
+                    "Send the progress report and expense from 01-05-2026 to 27-05-2026 to my_manager@dcmhsriram.com"
                   </div>
                 </div>
                 <div className="flex items-start gap-4 flex-row-reverse">
@@ -223,12 +223,12 @@ export default function Landing() {
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                       </span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400 text-xs uppercase tracking-wide">Report Dispatched</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400 text-xs uppercase tracking-wide">Background Tasks Queued</span>
                     </div>
                     <p className="mb-2">
-                      The <strong>weekly lab performance report (PDF)</strong> has been sent to your inbox — covering production, contamination events, inventory alerts, and team activity for the past 7 days.
+                      ✅ The <strong>Progress Report</strong> and <strong>Expenses Report</strong> (01-05-2026 to 27-05-2026) are being generated and will be emailed to <strong>my_manager@dcmhsriram.com</strong> shortly.
                     </p>
-                    <p className="text-xs opacity-70">Automated Celery worker task executed successfully.</p>
+                    <p className="text-xs opacity-70">Automated Celery worker tasks dispatched successfully.</p>
                   </div>
                 </div>
 
