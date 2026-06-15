@@ -184,6 +184,11 @@ export interface DashboardStats {
   cost_per_plantlet: number;
   overall_success_rate: number;
   total_contamination: number;
+  cost_breakdown?: {
+    chemicals: number;
+    manpower: number;
+    other: number;
+  };
 }
 
 export interface DashboardResponse {

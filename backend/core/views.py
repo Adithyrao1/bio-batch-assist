@@ -717,14 +717,33 @@ class DashboardView(APIView):
         ]
         contamination_by_stage = [c for c in contamination_by_stage if c["size"] > 0]
 
+        # ── COST BREAKDOWN (always from ORM — accurate, real-time) ───────────
+        from django.db.models import Sum as _Sum
+        chem_usages_all = StockSolutionChemicalUsage.objects.filter(
+            preparation__date__gte=start_date
+        ).select_related('chemical')
+        cost_chemicals = sum(
+            float(u.quantity_consumed) * float(u.chemical.unit_price)
+            for u in chem_usages_all
+        )
+        cost_other = float(
+            Expense.objects.filter(date__gte=start_date).aggregate(s=_Sum('amount'))['s'] or 0
+        )
+        cost_manpower = round(total_salary_cost, 2)
+
         return Response({
             'stats': {
                 'low_stock_chemicals': low_stock_chemicals,
                 'total_production': trans_prod,
-                'total_cost': total_cost,
+                'total_cost': round(total_cost, 2),
                 'cost_per_plantlet': round(cost_per_plantlet, 2),
                 'overall_success_rate': round(overall_success_rate, 2),
                 'total_contamination': total_lost,
+                'cost_breakdown': {
+                    'chemicals': round(cost_chemicals, 2),
+                    'manpower': cost_manpower,
+                    'other': round(cost_other, 2),
+                },
             },
             'variety_distribution': variety_distribution,
             'success_rate_per_variety': variety_success,

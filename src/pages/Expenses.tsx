@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Beaker, FileText, TrendingDown, Calendar as CalendarIcon, DollarSign, Sprout, Users } from "lucide-react";
+import { Beaker, FileText, TrendingDown, Calendar as CalendarIcon, DollarSign, Sprout, Users, ChevronDown, FlaskConical, HardHat, Receipt } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { format, differenceInDays } from "date-fns";
@@ -123,48 +123,155 @@ export default function Expenses() {
           exit={{ opacity: 0, y: -4 }}
           transition={{ duration: 0.15 }}
         >
-          {activeTab === "dashboard" && (
-            <div className="grid gap-4 md:grid-cols-3">
-              <Card className="relative overflow-hidden border-l-4 border-l-blue-600 bg-card rounded-md shadow-sm">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Total Operational Cost (30 Days)</span>
-                    <DollarSign className="h-4 w-4 text-blue-600" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-xl font-bold tracking-tight text-foreground">₹{totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                  <p className="text-[10px] text-muted-foreground mt-1">Chemical consumption + overhead logs</p>
-                </CardContent>
-              </Card>
+          {activeTab === "dashboard" && (() => {
+            const breakdown = stats?.cost_breakdown;
+            const chemCost   = breakdown?.chemicals ?? 0;
+            const manpCost   = breakdown?.manpower  ?? 0;
+            const otherCost  = breakdown?.other     ?? 0;
+            const computedTotal = chemCost + manpCost + otherCost;
+            const pct = (val: number) =>
+              computedTotal > 0 ? Math.round((val / computedTotal) * 100) : 0;
 
-              <Card className="relative overflow-hidden border-l-4 border-l-sky-500 bg-card rounded-md shadow-sm">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Total Plantlets Produced</span>
-                    <Sprout className="h-4 w-4 text-sky-500" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-xl font-bold tracking-tight text-foreground">{totalPlantlets.toLocaleString()}</div>
-                  <p className="text-[10px] text-muted-foreground mt-1">Transplanted output (30 Days)</p>
-                </CardContent>
-              </Card>
+            const [breakdownOpen, setBreakdownOpen] = useState(false);
 
-              <Card className="relative overflow-hidden border-l-4 border-l-emerald-500 bg-card rounded-md shadow-sm">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Est. Cost Per Plantlet</span>
-                    <DollarSign className="h-4 w-4 text-emerald-500" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-black tracking-tight text-emerald-600 dark:text-emerald-500">₹{costPerPlantlet.toFixed(3)}</div>
-                  <p className="text-[10px] text-muted-foreground mt-1">Total Cost / {totalPlantlets.toLocaleString()} Plantlets</p>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+            const breakdownItems = [
+              {
+                label: "Chemicals & Stock",
+                value: chemCost,
+                icon: <FlaskConical className="h-3.5 w-3.5" />,
+                color: "bg-blue-500",
+                textColor: "text-blue-500",
+                pct: pct(chemCost),
+              },
+              {
+                label: "Manpower (Salaries)",
+                value: manpCost,
+                icon: <HardHat className="h-3.5 w-3.5" />,
+                color: "bg-violet-500",
+                textColor: "text-violet-500",
+                pct: pct(manpCost),
+              },
+              {
+                label: "Other Expenses",
+                value: otherCost,
+                icon: <Receipt className="h-3.5 w-3.5" />,
+                color: "bg-amber-500",
+                textColor: "text-amber-500",
+                pct: pct(otherCost),
+              },
+            ];
+
+            return (
+              <div className="grid gap-4 md:grid-cols-3">
+                {/* Total Cost — expandable */}
+                <div className="relative overflow-hidden border-l-4 border-l-blue-600 bg-card rounded-md shadow-sm">
+                  {/* Header row — always visible, clickable */}
+                  <button
+                    id="toggle-cost-breakdown"
+                    onClick={() => setBreakdownOpen((o) => !o)}
+                    className="w-full text-left px-5 pt-4 pb-3 flex items-start justify-between gap-3 group"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Total Operational Cost
+                      </span>
+                      <div className="text-xl font-bold tracking-tight text-foreground mt-1">
+                        ₹{totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {breakdownOpen ? "Click to hide breakdown" : "Click to see breakdown"}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0 pt-0.5">
+                      <DollarSign className="h-4 w-4 text-blue-600" />
+                      <ChevronDown
+                        className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${
+                          breakdownOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  {/* Stacked proportion bar */}
+                  {computedTotal > 0 && (
+                    <div className="mx-5 mb-3 h-1.5 rounded-full bg-muted overflow-hidden flex">
+                      <div className="bg-blue-500 h-full transition-all duration-500" style={{ width: `${pct(chemCost)}%` }} />
+                      <div className="bg-violet-500 h-full transition-all duration-500" style={{ width: `${pct(manpCost)}%` }} />
+                      <div className="bg-amber-500 h-full transition-all duration-500" style={{ width: `${pct(otherCost)}%` }} />
+                    </div>
+                  )}
+
+                  {/* Expandable breakdown */}
+                  <AnimatePresence initial={false}>
+                    {breakdownOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                        className="overflow-hidden border-t border-border/40"
+                      >
+                        <div className="px-5 py-3 space-y-3 bg-muted/10">
+                          {breakdownItems.map((item) => (
+                            <div key={item.label} className="space-y-1">
+                              <div className="flex items-center justify-between">
+                                <div className={`flex items-center gap-1.5 text-[11px] font-semibold ${item.textColor}`}>
+                                  {item.icon}
+                                  <span>{item.label}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-muted-foreground font-mono">{item.pct}%</span>
+                                  <span className="text-xs font-bold text-foreground">
+                                    ₹{item.value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="h-1 rounded-full bg-muted overflow-hidden">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${item.pct}%` }}
+                                  transition={{ duration: 0.4, delay: 0.1 }}
+                                  className={`h-full rounded-full ${item.color}`}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Total Plantlets */}
+                <Card className="relative overflow-hidden border-l-4 border-l-sky-500 bg-card rounded-md shadow-sm">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Total Plantlets Produced</span>
+                      <Sprout className="h-4 w-4 text-sky-500" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl font-bold tracking-tight text-foreground">{totalPlantlets.toLocaleString()}</div>
+                    <p className="text-[10px] text-muted-foreground mt-1">Transplanted output (30 Days)</p>
+                  </CardContent>
+                </Card>
+
+                {/* Cost per Plantlet */}
+                <Card className="relative overflow-hidden border-l-4 border-l-emerald-500 bg-card rounded-md shadow-sm">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Est. Cost Per Plantlet</span>
+                      <DollarSign className="h-4 w-4 text-emerald-500" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-black tracking-tight text-emerald-600 dark:text-emerald-500">₹{costPerPlantlet.toFixed(3)}</div>
+                    <p className="text-[10px] text-muted-foreground mt-1">Total Cost / {totalPlantlets.toLocaleString()} Plantlets</p>
+                  </CardContent>
+                </Card>
+              </div>
+            );
+          })()}
 
           {activeTab === "chemicals" && (
             <Card className="rounded-md border bg-card shadow-sm">
