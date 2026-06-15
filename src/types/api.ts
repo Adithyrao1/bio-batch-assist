@@ -238,26 +238,24 @@ export interface ManpowerExpense {
   id: number;
   technician: number;
   technician_name: string;
-  month: number;
-  month_display: string;
-  year: number;
-  amount: number;
+  monthly_salary: number;
+  daily_rate: number;
   notes?: string;
   recorded_by: number;
   recorded_by_name: string;
+  updated_at: string;
   created_at: string;
 }
 
 export interface ManpowerExpenseCreate {
   technician: number;
-  month: number;
-  year: number;
-  amount: number;
+  monthly_salary: number;
   notes?: string;
 }
 
 export interface ManpowerListResponse {
   results: ManpowerExpense[];
   count: number;
-  total_amount: number;
+  total_monthly_payroll: number;
+  total_daily_cost: number;
 }

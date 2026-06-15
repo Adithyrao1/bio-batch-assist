@@ -203,39 +203,33 @@ class ExpenseSerializer(serializers.ModelSerializer):
 class ManpowerExpenseSerializer(serializers.ModelSerializer):
     technician_name = serializers.SerializerMethodField()
     recorded_by_name = serializers.CharField(source='recorded_by.get_full_name', read_only=True)
-    month_display = serializers.CharField(source='get_month_display', read_only=True)
+    daily_rate = serializers.SerializerMethodField()
 
     class Meta:
         model = ManpowerExpense
         fields = [
-            'id', 'technician', 'technician_name', 'month', 'month_display',
-            'year', 'amount', 'notes', 'recorded_by', 'recorded_by_name', 'created_at'
+            'id', 'technician', 'technician_name',
+            'monthly_salary', 'daily_rate',
+            'notes', 'recorded_by', 'recorded_by_name', 'updated_at', 'created_at'
         ]
-        read_only_fields = ['recorded_by', 'created_at']
+        read_only_fields = ['recorded_by', 'created_at', 'updated_at']
 
     def get_technician_name(self, obj):
         return obj.technician.get_full_name() or obj.technician.username
 
+    def get_daily_rate(self, obj):
+        return obj.daily_rate
+
     def validate_technician(self, value):
-        """Ensure only technicians (not admins or viewers) can be assigned a salary."""
+        """Ensure only technicians can have a salary record."""
         if value.role != 'technician':
             raise serializers.ValidationError(
                 f"'{value.username}' is not a technician. Only technician role users can have salary records."
             )
-        return value
-
-    def validate(self, attrs):
-        """Raise an explicit error if a salary for this (technician, month, year) already exists."""
-        technician = attrs.get('technician') or getattr(self.instance, 'technician', None)
-        month = attrs.get('month') or getattr(self.instance, 'month', None)
-        year = attrs.get('year') or getattr(self.instance, 'year', None)
-
-        qs = ManpowerExpense.objects.filter(technician=technician, month=month, year=year)
-        if self.instance:
-            qs = qs.exclude(pk=self.instance.pk)  # Allow editing the same record
-        if qs.exists():
+        # On create (no instance), check if record already exists
+        if not self.instance and ManpowerExpense.objects.filter(technician=value).exists():
             raise serializers.ValidationError(
-                f"A salary record for {technician.get_full_name() or technician.username} "
-                f"in {month}/{year} already exists. Please edit the existing record instead."
+                f"A salary record for {value.get_full_name() or value.username} already exists. "
+                f"Edit the existing record instead."
             )
-        return attrs
+        return value

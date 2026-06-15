@@ -624,30 +624,12 @@ class DashboardView(APIView):
             chem_usages = StockSolutionChemicalUsage.objects.filter(preparation__date__gte=start_date)
             total_chem_cost = sum([float(u.quantity_consumed) * float(u.chemical.unit_price) for u in chem_usages.select_related('chemical')])
 
-            # Pro-rated salary: include months that overlap with the selected date range
-            # For each ManpowerExpense record, calculate what fraction of that month falls in range,
-            # then include (fraction × salary) in the total cost.
-            import calendar
-            salary_records = ManpowerExpense.objects.filter(
-                year__gte=start_date.year
-            ).filter(
-                models.Q(year__gt=start_date.year) |
-                models.Q(year=start_date.year, month__gte=start_date.month)
+            # Pro-rated manpower cost: daily_rate = monthly_salary / 30 × days in range
+            salary_records = ManpowerExpense.objects.select_related('technician').all()
+            total_salary_cost = sum(
+                record.daily_rate * days
+                for record in salary_records
             )
-            total_salary_cost = 0.0
-            today = timezone.now().date()
-            for record in salary_records:
-                # Days in that salary month
-                days_in_month = calendar.monthrange(record.year, record.month)[1]
-                # First and last day of that month
-                month_start = timezone.datetime(record.year, record.month, 1).date()
-                month_end = timezone.datetime(record.year, record.month, days_in_month).date()
-                # Overlap with the selected range [start_date, today]
-                overlap_start = max(start_date, month_start)
-                overlap_end = min(today, month_end)
-                overlap_days = max(0, (overlap_end - overlap_start).days + 1)
-                fraction = overlap_days / days_in_month
-                total_salary_cost += float(record.amount) * fraction
 
             total_cost = float(total_indirect) + total_chem_cost + total_salary_cost
 
@@ -841,39 +823,29 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 class ManpowerExpenseViewSet(viewsets.ModelViewSet):
     """
     Admin-only viewset for technician salary management.
-    GET    /api/manpower/                    → list (supports ?year=&month=&technician=)
-    POST   /api/manpower/                    → add salary record
-    PATCH  /api/manpower/{id}/              → edit salary record
-    DELETE /api/manpower/{id}/              → delete salary record
+    One record per technician — edit to update salary, never re-enter per month.
     """
     serializer_class = ManpowerExpenseSerializer
     permission_classes = [IsAdminUser]
-
-    def get_queryset(self):
-        qs = ManpowerExpense.objects.select_related('technician', 'recorded_by').all()
-        year = self.request.query_params.get('year')
-        month = self.request.query_params.get('month')
-        technician = self.request.query_params.get('technician')
-        if year:
-            qs = qs.filter(year=year)
-        if month:
-            qs = qs.filter(month=month)
-        if technician:
-            qs = qs.filter(technician_id=technician)
-        return qs
+    queryset = ManpowerExpense.objects.select_related('technician', 'recorded_by').all()
 
     def perform_create(self, serializer):
         serializer.save(recorded_by=self.request.user)
 
+    def perform_update(self, serializer):
+        serializer.save(recorded_by=self.request.user)
+
     def list(self, request, *args, **kwargs):
-        """Override list to include salary summary totals in the response."""
+        """Returns all salary records plus summary totals."""
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
-        total = sum(float(r.amount) for r in queryset)
+        total_monthly = sum(float(r.monthly_salary) for r in queryset)
+        total_daily = sum(r.daily_rate for r in queryset)
         return Response({
             'results': serializer.data,
             'count': queryset.count(),
-            'total_amount': round(total, 2),
+            'total_monthly_payroll': round(total_monthly, 2),
+            'total_daily_cost': round(total_daily, 4),
         })
 
 # Trigger auto-reloader

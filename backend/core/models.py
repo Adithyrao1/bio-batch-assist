@@ -238,38 +238,35 @@ class Expense(models.Model):
 # ============================================
 class ManpowerExpense(models.Model):
     """
-    Monthly salary record for a specific technician.
-    Only one entry allowed per technician per (month, year) — enforced
-    by the unique_together constraint.  Admin can edit, not duplicate.
+    Stores the current monthly salary for a technician.
+    One record per technician (unique). Admin updates when salary changes.
+    Daily rate = monthly_salary / 30, used to pro-rate cost per plantlet.
     """
-    MONTH_CHOICES = [
-        (1, 'January'), (2, 'February'), (3, 'March'), (4, 'April'),
-        (5, 'May'), (6, 'June'), (7, 'July'), (8, 'August'),
-        (9, 'September'), (10, 'October'), (11, 'November'), (12, 'December'),
-    ]
-
-    technician = models.ForeignKey(
+    technician = models.OneToOneField(
         'User',
         on_delete=models.PROTECT,
-        related_name='salary_records',
+        related_name='salary_record',
         limit_choices_to={'role': 'technician'},
     )
-    month = models.PositiveSmallIntegerField(choices=MONTH_CHOICES)
-    year = models.PositiveSmallIntegerField()
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    monthly_salary = models.DecimalField(max_digits=12, decimal_places=2)
     notes = models.TextField(blank=True)
     recorded_by = models.ForeignKey(
         'User',
         on_delete=models.PROTECT,
         related_name='recorded_salaries',
     )
+    updated_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = [('technician', 'month', 'year')]
-        ordering = ['-year', '-month', 'technician']
+        ordering = ['technician']
         verbose_name = 'Manpower Expense'
         verbose_name_plural = 'Manpower Expenses'
 
+    @property
+    def daily_rate(self):
+        """Daily cost rate derived from monthly salary."""
+        return round(float(self.monthly_salary) / 30, 4)
+
     def __str__(self):
-        return f"{self.technician.get_full_name() or self.technician.username} — {self.get_month_display()} {self.year} (₹{self.amount})"
+        return f"{self.technician.get_full_name() or self.technician.username} — ₹{self.monthly_salary}/month"
