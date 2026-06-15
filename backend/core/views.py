@@ -623,15 +623,8 @@ class DashboardView(APIView):
             total_indirect = Expense.objects.filter(date__gte=start_date).aggregate(s=Sum('amount'))['s'] or 0
             chem_usages = StockSolutionChemicalUsage.objects.filter(preparation__date__gte=start_date)
             total_chem_cost = sum([float(u.quantity_consumed) * float(u.chemical.unit_price) for u in chem_usages.select_related('chemical')])
-
-            # Pro-rated manpower cost: daily_rate = monthly_salary / 30 × days in range
-            salary_records = ManpowerExpense.objects.select_related('technician').all()
-            total_salary_cost = sum(
-                record.daily_rate * days
-                for record in salary_records
-            )
-
-            total_cost = float(total_indirect) + total_chem_cost + total_salary_cost
+            # Note: manpower salary added at shared merge point below
+            total_cost = float(total_indirect) + total_chem_cost
 
             # Variety success
             variety_success = []
@@ -678,6 +671,14 @@ class DashboardView(APIView):
                     period_str = item['period'].strftime("%Y-%m-%d")
                     cont_dict[period_str] = cont_dict.get(period_str, 0) + item['c']
             contamination_trend = [{"date": k, "cases": v} for k, v in sorted(cont_dict.items())]
+
+        # ── MANPOWER SALARY COST ─────────────────────────────────────────────
+        # Always add salary cost here — AFTER both DuckDB and ORM paths — so it
+        # is guaranteed to be included regardless of which path executed above.
+        # Formula: daily_rate (= monthly_salary / 30) × days_in_range per technician
+        salary_records = ManpowerExpense.objects.all()
+        total_salary_cost = sum(record.daily_rate * days for record in salary_records)
+        total_cost += total_salary_cost
 
         # Calculate shared metrics
         cost_per_plantlet = 0.0
