@@ -46,10 +46,12 @@ import {
 // ============================================
 // DASHBOARD HOOKS
 // ============================================
-export function useDashboard(days: number = 30) {
+export function useDashboard(params: { days?: number; from_date?: string; to_date?: string } | number = 30) {
+  // Accept either a plain number (legacy: Dashboard.tsx passes days=30) or a params object
+  const normalised = typeof params === 'number' ? { days: params } : params;
   return useQuery<DashboardResponse>({
-    queryKey: ['dashboard', days],
-    queryFn: () => dashboardApi.getStats(days),
+    queryKey: ['dashboard', normalised],
+    queryFn: () => dashboardApi.getStats(normalised),
   });
 }
 

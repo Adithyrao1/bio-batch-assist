@@ -544,8 +544,15 @@ export const tasksApi = {
 // DASHBOARD API
 // ============================================
 export const dashboardApi = {
-  async getStats(days: number = 30): Promise<DashboardResponse> {
-    const response = await fetchWithAuth(`/dashboard/?days=${days}`);
+  async getStats(params: { days?: number; from_date?: string; to_date?: string } = {}): Promise<DashboardResponse> {
+    const q = new URLSearchParams();
+    if (params.from_date && params.to_date) {
+      q.set('from_date', params.from_date);
+      q.set('to_date', params.to_date);
+    } else if (params.days !== undefined) {
+      q.set('days', String(params.days));
+    }
+    const response = await fetchWithAuth(`/dashboard/?${q.toString()}`);
     return handleResponse(response);
   },
 };

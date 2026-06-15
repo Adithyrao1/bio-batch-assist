@@ -470,13 +470,7 @@ class DashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request):
-        days = int(request.query_params.get('days', 0))
-        if days > 0:
-            start_date = timezone.now().date() - timedelta(days=days)
-        else:
-            from datetime import date
-            start_date = date(2000, 1, 1)
-        
+        from datetime import date as _date
         from django.db.models import F, Q, Sum
         from django.db.models.functions import TruncMonth, TruncDay
         from core.models import Chemical, StockSolutionChemicalUsage, Expense, Variety
@@ -484,13 +478,33 @@ class DashboardView(APIView):
         import os
         from django.conf import settings
 
-        # 1. Low stock chemicals (keep querying live MySQL since it's real-time inventory count)
+        today = timezone.now().date()
+
+        # ── Date range resolution (priority: from_date/to_date > days > all-time) ──
+        from_date_str = request.query_params.get('from_date')
+        to_date_str   = request.query_params.get('to_date')
+        days_param    = int(request.query_params.get('days', 0))
+
+        if from_date_str and to_date_str:
+            start_date = _date.fromisoformat(from_date_str)
+            end_date   = _date.fromisoformat(to_date_str)
+        elif days_param > 0:
+            start_date = today - timedelta(days=days_param)
+            end_date   = today
+        else:
+            start_date = _date(2000, 1, 1)
+            end_date   = today
+
+        days = max(1, (end_date - start_date).days)  # number of days in selected range
+
+        # 1. Low stock chemicals (always real-time)
         low_stock_chemicals = Chemical.objects.filter(
             Q(remaining_stock__lte=F('quantity') * 0.3) | Q(remaining_stock__lte=15)
         ).count()
-        
+
         db_path = os.path.join(settings.BASE_DIR, 'lab_analytics', 'analytics.duckdb')
         start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str   = end_date.strftime("%Y-%m-%d")
         
         # Initialize default response structures
         init_prod = init_cont = mult_prod = mult_cont = root_prod = root_cont = 0
@@ -518,70 +532,71 @@ class DashboardView(APIView):
                 stage_rows = con.execute(f"""
                     SELECT stage, SUM(produced_count), SUM(lost_count)
                     FROM daily_stage_rollup
-                    WHERE date >= '{start_date_str}'
+                    WHERE date >= '{start_date_str}' AND date <= '{end_date_str}'
                     GROUP BY stage
                 """).fetchall()
-                
+
                 stages = {row[0]: (int(row[1] or 0), int(row[2] or 0)) for row in stage_rows}
-                
+
                 init_prod, init_cont = stages.get('Initiation', (0, 0))
                 mult_prod, mult_cont = stages.get('Multiplication', (0, 0))
                 root_prod, root_cont = stages.get('Rooting', (0, 0))
                 hard_prod, hard_died = stages.get('Hardening', (0, 0))
                 trans_prod, trans_died = stages.get('Transplantation', (0, 0))
-                
+
                 # B. Financials (Total Cost)
-                cost_res = con.execute(f"SELECT SUM(total_cost) FROM financials_rollup WHERE date >= '{start_date_str}'").fetchone()
+                cost_res = con.execute(f"""
+                    SELECT SUM(total_cost) FROM financials_rollup
+                    WHERE date >= '{start_date_str}' AND date <= '{end_date_str}'
+                """).fetchone()
                 total_cost = float(cost_res[0] or 0.0)
-                
+
                 # C. Variety Distribution
                 dist_rows = con.execute(f"""
                     SELECT v.code, SUM(r.produced_count)
                     FROM daily_stage_rollup r
                     JOIN variety_mappings v ON r.variety_id = v.id
-                    WHERE r.stage = 'Transplantation' AND r.date >= '{start_date_str}'
+                    WHERE r.stage = 'Transplantation'
+                      AND r.date >= '{start_date_str}' AND r.date <= '{end_date_str}'
                     GROUP BY v.code
                     ORDER BY 2 DESC
                 """).fetchall()
                 variety_distribution = [{"name": row[0], "value": int(row[1] or 0)} for row in dist_rows]
-                
+
                 # D. Variety Success Rate
                 var_success_rows = con.execute(f"""
                     SELECT v.code, SUM(r.produced_count), SUM(r.lost_count)
                     FROM daily_stage_rollup r
                     JOIN variety_mappings v ON r.variety_id = v.id
-                    WHERE r.date >= '{start_date_str}'
+                    WHERE r.date >= '{start_date_str}' AND r.date <= '{end_date_str}'
                     GROUP BY v.code
                 """).fetchall()
-                
+
                 for row in var_success_rows:
                     v_code = row[0]
                     v_started = int(row[1] or 0)
                     v_lost = int(row[2] or 0)
                     if v_started > 0:
                         rate = ((v_started - v_lost) / v_started) * 100
-                        variety_success.append({
-                            "variety": v_code,
-                            "successRate": round(rate, 2)
-                        })
-                        
-                # E. Production Trend (Transplantation output)
+                        variety_success.append({"variety": v_code, "successRate": round(rate, 2)})
+
+                # E. Production Trend
                 trend_rows = con.execute(f"""
                     SELECT date, SUM(produced_count)
                     FROM daily_stage_rollup
-                    WHERE stage = 'Transplantation' AND date >= '{start_date_str}'
-                    GROUP BY date
-                    ORDER BY date
+                    WHERE stage = 'Transplantation'
+                      AND date >= '{start_date_str}' AND date <= '{end_date_str}'
+                    GROUP BY date ORDER BY date
                 """).fetchall()
                 production_trend = [{"date": _fmt_date(row[0]), "total": int(row[1] or 0)} for row in trend_rows]
-                
-                # F. Contamination Trend (Initiation, Multiplication, Rooting)
+
+                # F. Contamination Trend
                 cont_rows = con.execute(f"""
                     SELECT date, SUM(lost_count)
                     FROM daily_stage_rollup
-                    WHERE stage IN ('Initiation', 'Multiplication', 'Rooting') AND date >= '{start_date_str}'
-                    GROUP BY date
-                    ORDER BY date
+                    WHERE stage IN ('Initiation', 'Multiplication', 'Rooting')
+                      AND date >= '{start_date_str}' AND date <= '{end_date_str}'
+                    GROUP BY date ORDER BY date
                 """).fetchall()
                 contamination_trend = [{"date": _fmt_date(row[0]), "cases": int(row[1] or 0)} for row in cont_rows]
                 
@@ -595,11 +610,11 @@ class DashboardView(APIView):
 
         if not duckdb_success:
             # === FALLBACK TO DJANGO ORM ===
-            init_logs = InitiationLog.objects.filter(date__gte=start_date)
-            mult_logs = MultiplicationLog.objects.filter(date__gte=start_date)
-            root_logs = RootingLog.objects.filter(date__gte=start_date)
-            hard_logs = HardeningLog.objects.filter(date__gte=start_date)
-            trans_logs = TransplantationLog.objects.filter(date__gte=start_date)
+            init_logs  = InitiationLog.objects.filter(date__gte=start_date, date__lte=end_date)
+            mult_logs  = MultiplicationLog.objects.filter(date__gte=start_date, date__lte=end_date)
+            root_logs  = RootingLog.objects.filter(date__gte=start_date, date__lte=end_date)
+            hard_logs  = HardeningLog.objects.filter(date__gte=start_date, date__lte=end_date)
+            trans_logs = TransplantationLog.objects.filter(date__gte=start_date, date__lte=end_date)
 
             init_prod = init_logs.aggregate(s=Sum('bottles_inoculated'))['s'] or 0
             init_cont = init_logs.aggregate(s=Sum('contaminated_bottles'))['s'] or 0
@@ -617,8 +632,8 @@ class DashboardView(APIView):
             trans_died = trans_logs.aggregate(s=Sum('seedlings_died'))['s'] or 0
 
             # Cost
-            total_indirect = Expense.objects.filter(date__gte=start_date).aggregate(s=Sum('amount'))['s'] or 0
-            chem_usages = StockSolutionChemicalUsage.objects.filter(preparation__date__gte=start_date)
+            total_indirect = Expense.objects.filter(date__gte=start_date, date__lte=end_date).aggregate(s=Sum('amount'))['s'] or 0
+            chem_usages = StockSolutionChemicalUsage.objects.filter(preparation__date__gte=start_date, preparation__date__lte=end_date)
             total_chem_cost = sum([float(u.quantity_consumed) * float(u.chemical.unit_price) for u in chem_usages.select_related('chemical')])
             # Note: manpower salary added at shared merge point below
             total_cost = float(total_indirect) + total_chem_cost
@@ -671,19 +686,13 @@ class DashboardView(APIView):
 
         # ── MANPOWER SALARY COST ─────────────────────────────────────────────
         # Runs after both DuckDB and ORM paths — always included.
-        # Logic:
-        #   days > 0  (user picked a range): use exactly `days` × daily_rate
-        #   days = 0  (all-time): count from when each salary record was created → today
-        from django.utils.timezone import now as tz_now
-        today_date = tz_now().date()
+        # effective_days = days in selected range that overlap with when the salary existed.
         salary_records = ManpowerExpense.objects.all()
         total_salary_cost = 0.0
         for record in salary_records:
-            if days > 0:
-                effective_days = days
-            else:
-                # All-time: only count from when salary was first recorded
-                effective_days = max(1, (today_date - record.created_at.date()).days + 1)
+            # Salary only valid from when it was first recorded
+            effective_start = max(start_date, record.created_at.date())
+            effective_days  = max(0, (end_date - effective_start).days + 1)
             total_salary_cost += record.daily_rate * effective_days
         total_cost += total_salary_cost
 
@@ -717,14 +726,14 @@ class DashboardView(APIView):
 
         # ── COST BREAKDOWN (always from ORM — accurate, real-time) ───────────
         chem_usages_all = StockSolutionChemicalUsage.objects.filter(
-            preparation__date__gte=start_date
+            preparation__date__gte=start_date, preparation__date__lte=end_date
         ).select_related('chemical')
         cost_chemicals = sum(
             float(u.quantity_consumed) * float(u.chemical.unit_price)
             for u in chem_usages_all
         )
         cost_other = float(
-            Expense.objects.filter(date__gte=start_date).aggregate(s=Sum('amount'))['s'] or 0
+            Expense.objects.filter(date__gte=start_date, date__lte=end_date).aggregate(s=Sum('amount'))['s'] or 0
         )
         cost_manpower = round(total_salary_cost, 2)
 
@@ -736,9 +745,14 @@ class DashboardView(APIView):
                 'cost_per_plantlet': round(cost_per_plantlet, 2),
                 'overall_success_rate': round(overall_success_rate, 2),
                 'total_contamination': total_lost,
+                'date_range': {
+                    'from': start_date.strftime('%Y-%m-%d'),
+                    'to': end_date.strftime('%Y-%m-%d'),
+                    'days': days,
+                },
                 'cost_breakdown': {
                     'chemicals': round(cost_chemicals, 2),
-                    'manpower': cost_manpower,
+                    'manpower': round(cost_manpower, 2),
                     'other': round(cost_other, 2),
                 },
             },

@@ -25,12 +25,14 @@ export default function Expenses() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [date, setDate] = useState<DateRange | undefined>(undefined);
 
-  const days = useMemo(() => {
-    if (date?.from && date?.to) return differenceInDays(date.to, date.from) || 0;
-    return 0; // 0 means all-time in backend
+  const dashboardParams = useMemo(() => {
+    if (date?.from && date?.to) {
+      return { from_date: format(date.from, 'yyyy-MM-dd'), to_date: format(date.to, 'yyyy-MM-dd') };
+    }
+    return { days: 0 };
   }, [date]);
 
-  const { data: dashboardData } = useDashboard(days);
+  const { data: dashboardData } = useDashboard(dashboardParams);
   const { data: expenses } = useExpenses();
   const { data: chemicals } = useChemicals();
   const { data: manpowerData } = useManpowerExpenses();
@@ -40,6 +42,24 @@ export default function Expenses() {
   const totalCost = stats?.total_cost || 0;
   const totalPlantlets = stats?.total_production || 0;
   const costPerPlantlet = stats?.cost_per_plantlet || 0;
+
+  // Dynamic date range label from API
+  const dateRangeLabel = useMemo(() => {
+    if (date?.from && date?.to) {
+      return `${format(date.from, 'MMM d')} – ${format(date.to, 'MMM d, yyyy')}`;
+    }
+    const dr = stats?.date_range;
+    if (dr) {
+      return `${format(new Date(dr.from), 'MMM d, yyyy')} – ${format(new Date(dr.to), 'MMM d, yyyy')}`;
+    }
+    return 'All Time';
+  }, [date, stats]);
+
+  const daysLabel = stats?.date_range?.days
+    ? `${stats.date_range.days} days`
+    : date?.from && date?.to
+    ? `${Math.abs(differenceInDays(date.to, date.from))} days`
+    : 'All Time';
 
   const tabs = [
     { id: "dashboard", label: "Cost Dashboard", icon: TrendingDown },
@@ -252,7 +272,7 @@ export default function Expenses() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-xl font-bold tracking-tight text-foreground">{totalPlantlets.toLocaleString()}</div>
-                    <p className="text-[10px] text-muted-foreground mt-1">Transplanted output (30 Days)</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Transplanted output • {dateRangeLabel}</p>
                   </CardContent>
                 </Card>
 
@@ -266,7 +286,7 @@ export default function Expenses() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-black tracking-tight text-emerald-600 dark:text-emerald-500">₹{costPerPlantlet.toFixed(3)}</div>
-                    <p className="text-[10px] text-muted-foreground mt-1">Total Cost / {totalPlantlets.toLocaleString()} Plantlets</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Total Cost / {totalPlantlets.toLocaleString()} Plantlets • {daysLabel}</p>
                   </CardContent>
                 </Card>
               </div>
