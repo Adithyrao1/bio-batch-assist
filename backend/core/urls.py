@@ -7,7 +7,7 @@ from . import reports_excel
 router = DefaultRouter()
 
 # User management
-router.register(r'users', views.UserViewSet)
+router.register(r'users', views.UserViewSet, basename='user')
 
 # Master data
 router.register(r'varieties', views.VarietyViewSet)
