@@ -230,3 +230,34 @@ export interface ExpenseCreate {
   description?: string;
   invoice_reference?: string;
 }
+
+// ============================================
+// Manpower Expense Types
+// ============================================
+export interface ManpowerExpense {
+  id: number;
+  technician: number;
+  technician_name: string;
+  month: number;
+  month_display: string;
+  year: number;
+  amount: number;
+  notes?: string;
+  recorded_by: number;
+  recorded_by_name: string;
+  created_at: string;
+}
+
+export interface ManpowerExpenseCreate {
+  technician: number;
+  month: number;
+  year: number;
+  amount: number;
+  notes?: string;
+}
+
+export interface ManpowerListResponse {
+  results: ManpowerExpense[];
+  count: number;
+  total_amount: number;
+}

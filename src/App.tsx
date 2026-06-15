@@ -19,6 +19,7 @@ import NotFound from "./pages/NotFound";
 import AIAssistant from "./pages/AIAssistant";
 
 import Profile from "./pages/Profile";
+import ManpowerPage from "./pages/ManpowerPage";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
             <Route path="/master-data" element={<ProtectedRoute adminOnly><MasterData /></ProtectedRoute>} />
             <Route path="/users" element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />
+            <Route path="/manpower" element={<ProtectedRoute adminOnly><ManpowerPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/ai-assistant" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

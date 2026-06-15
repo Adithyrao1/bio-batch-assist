@@ -17,6 +17,7 @@ import {
   recentActivityApi,
   expenseCategoriesApi,
   expensesApi,
+  manpowerApi,
   type PaginatedResponse,
   type User,
   type UserCreate,
@@ -37,7 +38,9 @@ import {
   type ExpenseCategory,
   type ExpenseCategoryCreate,
   type Expense,
-  type ExpenseCreate
+  type ExpenseCreate,
+  type ManpowerExpenseCreate,
+  type ManpowerListResponse
 } from '@/lib/api';
 
 // ============================================
@@ -413,5 +416,40 @@ export function useDeleteExpense() {
   return useMutation({
     mutationFn: (id: number) => expensesApi.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['expenses'] }),
+  });
+}
+
+// ============================================
+// MANPOWER EXPENSE HOOKS
+// ============================================
+export function useManpowerExpenses(params?: Record<string, string | number>) {
+  return useQuery<ManpowerListResponse>({
+    queryKey: ['manpower', params],
+    queryFn: () => manpowerApi.getAll(params),
+  });
+}
+
+export function useCreateManpowerExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: ManpowerExpenseCreate) => manpowerApi.create(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['manpower'] }),
+  });
+}
+
+export function useUpdateManpowerExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<ManpowerExpenseCreate> }) =>
+      manpowerApi.update(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['manpower'] }),
+  });
+}
+
+export function useDeleteManpowerExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => manpowerApi.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['manpower'] }),
   });
 }

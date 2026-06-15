@@ -488,6 +488,42 @@ export const expenseCategoriesApi = createCrudApi<any, any>('expense-categories'
 export const expensesApi = createCrudApi<any, any>('expenses');
 
 // ============================================
+// MANPOWER API (admin only)
+// ============================================
+import type { ManpowerExpense, ManpowerExpenseCreate, ManpowerListResponse } from '@/types/api';
+
+export const manpowerApi = {
+  async getAll(params?: Record<string, string | number>): Promise<ManpowerListResponse> {
+    const searchParams = new URLSearchParams();
+    if (params) Object.entries(params).forEach(([k, v]) => searchParams.append(k, String(v)));
+    const url = `/manpower/${searchParams.toString() ? `?${searchParams}` : ''}`;
+    const response = await fetchWithAuth(url);
+    return handleResponse(response);
+  },
+
+  async create(data: ManpowerExpenseCreate): Promise<ManpowerExpense> {
+    const response = await fetchWithAuth('/manpower/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async update(id: number, data: Partial<ManpowerExpenseCreate>): Promise<ManpowerExpense> {
+    const response = await fetchWithAuth(`/manpower/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
+
+  async delete(id: number): Promise<void> {
+    const response = await fetchWithAuth(`/manpower/${id}/`, { method: 'DELETE' });
+    await handleResponse(response);
+  },
+};
+
+// ============================================
 // TASKS API (admin only)
 // ============================================
 export const tasksApi = {
@@ -537,5 +573,8 @@ export type {
   ExpenseCategory,
   ExpenseCategoryCreate,
   Expense,
-  ExpenseCreate
+  ExpenseCreate,
+  ManpowerExpense,
+  ManpowerExpenseCreate,
+  ManpowerListResponse
 } from '@/types/api';

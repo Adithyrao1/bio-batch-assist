@@ -15,6 +15,7 @@ import {
   ArrowUpRight,
   DollarSign,
   Activity,
+  HardHat,
 } from "lucide-react";
 import {
   Sidebar,
@@ -48,6 +49,7 @@ const NAV_ITEMS = [
 const ADMIN_ITEMS = [
   { title: "Master Data", url: "/master-data", icon: Database },
   { title: "Users",       url: "/users",       icon: Users },
+  { title: "Manpower",   url: "/manpower",    icon: HardHat },
 ];
 
 type NavItemType = any;
