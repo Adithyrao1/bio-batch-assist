@@ -54,12 +54,15 @@ const STARTER_GROUPS = [
   },
   {
     id: "manpower",
-    title: "Manpower & Payroll",
+    title: "Expenses, Costing & Payroll",
     icon: Users,
     prompts: [
+      "What is our current cost per plantlet?",
+      "Give me a breakdown of our total operational cost — chemicals, manpower, and other expenses",
+      "How much did we spend on manpower from 2026-01-01 to 2026-06-15?",
       "Show me the total monthly payroll for all technicians",
       "What is the salary of Ravi?",
-      "How much did we spend on manpower from 2026-01-01 to 2026-06-15?",
+      "Which chemicals contributed the most to our costs this month?",
     ]
   },
 ];
@@ -315,14 +318,24 @@ export default function AIAssistant() {
       {/* Background Glassmorphism Orbs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
         <motion.div
-          animate={{ x: [0, 30, 0], y: [0, -20, 0] }}
+          animate={{ x: [0, 40, 0], y: [0, -30, 0], scale: [1, 1.1, 1] }}
           transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
           className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full blur-[100px] bg-violet-500/10 dark:bg-violet-600/15"
         />
         <motion.div
-          animate={{ x: [0, -20, 0], y: [0, 30, 0] }}
+          animate={{ x: [0, -30, 0], y: [0, 40, 0], scale: [1, 1.2, 1] }}
           transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
           className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full blur-[120px] bg-indigo-500/10 dark:bg-indigo-600/15"
+        />
+        <motion.div
+          animate={{ x: [0, 50, 0], y: [0, 50, 0], opacity: [0.5, 0.8, 0.5] }}
+          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 5 }}
+          className="absolute top-[30%] left-[20%] w-[300px] h-[300px] rounded-full blur-[90px] bg-cyan-400/10 dark:bg-cyan-500/10"
+        />
+        <motion.div
+          animate={{ x: [0, -40, 0], y: [0, -40, 0], opacity: [0.3, 0.6, 0.3] }}
+          transition={{ duration: 22, repeat: Infinity, ease: "easeInOut", delay: 7 }}
+          className="absolute bottom-[20%] right-[10%] w-[400px] h-[400px] rounded-full blur-[110px] bg-fuchsia-400/10 dark:bg-fuchsia-500/10"
         />
       </div>
 
@@ -376,9 +389,12 @@ export default function AIAssistant() {
               <RefreshCw className="h-3.5 w-3.5 text-white" />
               <span className="text-[11px] font-medium text-white hidden sm:inline">New Chat</span>
             </button>
-            <div className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[11px] font-medium text-white/80 hidden sm:inline">DeepSeek</span>
+            <div className="flex items-center gap-2 rounded-full bg-violet-500/10 border border-violet-500/20 px-3 py-1.5 shadow-[0_0_15px_rgba(124,58,237,0.1)]">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-[11px] font-bold text-violet-100 hidden sm:inline tracking-wide">DeepSeek</span>
             </div>
           </div>
         </div>
@@ -388,9 +404,11 @@ export default function AIAssistant() {
       <div className="relative z-10 flex-1 overflow-y-auto px-4 py-6 space-y-4">
         <div className="max-w-3xl mx-auto space-y-4">
           <AnimatePresence>
-            {messages.map((msg) => (
-              <MessageBubble key={msg.id} msg={msg} userName={userName} />
-            ))}
+            {messages.map((msg, idx) => 
+              (showStarters && idx === 0) ? null : (
+                <MessageBubble key={msg.id} msg={msg} userName={userName} />
+              )
+            )}
           </AnimatePresence>
 
           {/* Typing indicator */}
@@ -408,6 +426,47 @@ export default function AIAssistant() {
                 transition={{ delay: 0.3, duration: 0.3 }}
                 className="pt-2"
               >
+                {/* Animated Empty State Avatar */}
+                <div className="flex flex-col items-center justify-center pt-8 pb-10">
+                  <motion.div
+                    animate={{ y: [0, -10, 0] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    className="relative flex items-center justify-center h-24 w-24 mb-4"
+                  >
+                    <div className="absolute inset-0 bg-violet-500/20 blur-xl rounded-full" />
+                    <div className="absolute inset-2 bg-indigo-400/30 blur-md rounded-full" />
+                    <motion.div 
+                      className="relative h-20 w-20 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-[2rem] shadow-xl flex items-center justify-center border-4 border-background"
+                      whileHover={{ scale: 1.05 }}
+                    >
+                      <Bot className="h-10 w-10 text-white" />
+                      {/* Waving hand */}
+                      <motion.div
+                        animate={{ rotate: [0, 20, -10, 20, 0] }}
+                        transition={{ duration: 1.5, repeatDelay: 3, repeat: Infinity }}
+                        className="absolute -right-3 -top-3 text-2xl"
+                        style={{ originX: 0.8, originY: 0.8 }}
+                      >
+                        👋
+                      </motion.div>
+                    </motion.div>
+                  </motion.div>
+                  
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5, duration: 0.5 }}
+                    className="text-center space-y-1"
+                  >
+                    <h2 className="text-xl font-bold bg-gradient-to-r from-violet-600 to-indigo-500 bg-clip-text text-transparent">
+                      Hi, {userName.split(" ")[0]}!
+                    </h2>
+                    <p className="text-sm text-muted-foreground max-w-[280px]">
+                      I'm ready to analyze your lab data. What would you like to know?
+                    </p>
+                  </motion.div>
+                </div>
+
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-3 text-center">
                   Try asking…
                 </p>
@@ -468,8 +527,8 @@ export default function AIAssistant() {
       <div className="sticky bottom-0 z-20 flex-shrink-0 border-t border-border/50 bg-background/95 backdrop-blur-md px-4 py-3">
         <div className="max-w-3xl mx-auto">
           <div className={cn(
-            "flex items-end gap-3 rounded-2xl border bg-card px-4 py-3 transition-all duration-200",
-            loading ? "border-border/40" : "border-border/60 focus-within:border-violet-400/70 focus-within:shadow-[0_0_0_3px_rgba(124,58,237,0.1)]"
+            "flex items-end gap-3 rounded-2xl border bg-card px-4 py-3 transition-all duration-300 relative overflow-hidden group",
+            loading ? "border-border/40" : "border-border/60 focus-within:border-violet-500/80 focus-within:shadow-[0_0_20px_rgba(124,58,237,0.15)] focus-within:bg-card/90"
           )}>
             <textarea
               ref={textareaRef}
