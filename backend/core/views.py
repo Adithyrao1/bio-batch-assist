@@ -4,8 +4,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
-from django.db import transaction
-from django.db.models import Sum, Count
+from django.db import models, transaction
+from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from django.core import signing
@@ -24,7 +24,8 @@ from .models import (
     ExpenseCategory, Expense
 )
 from .serializers import (
-    UserSerializer, UserCreateSerializer, VarietySerializer, ChemicalSerializer,
+    UserSerializer, UserCreateSerializer, UserRoleUpdateSerializer,
+    VarietySerializer, ChemicalSerializer,
     InitiationLogSerializer, MultiplicationLogSerializer,
     RootingLogSerializer, HardeningLogSerializer, TransplantationLogSerializer,
     UserProfileSerializer, RecentActivitySerializer,
@@ -150,18 +151,29 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 class ProfileView(APIView):
     """
-    GET /api/auth/profile/ - Get current user profile
-    PUT /api/auth/profile/ - Update current user profile
+    GET  /api/auth/profile/  - Get current user profile
+    PUT  /api/auth/profile/  - Full update of editable profile fields
+    PATCH /api/auth/profile/ - Partial update (username, first_name, last_name, profile_picture)
     """
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-    
+
     def get(self, request):
         serializer = UserProfileSerializer(request.user, context={'request': request})
         return Response(serializer.data)
-    
+
     def put(self, request):
-        serializer = UserProfileSerializer(request.user, data=request.data, partial=True, context={'request': request})
+        serializer = UserProfileSerializer(
+            request.user, data=request.data, partial=False, context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def patch(self, request):
+        serializer = UserProfileSerializer(
+            request.user, data=request.data, partial=True, context={'request': request}
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
@@ -196,13 +208,69 @@ class IsAdminOrReadOnly(permissions.BasePermission):
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
+    """
+    Admin-only viewset for user management.
+    GET    /api/users/                     → list all users (supports ?role=&status=&search=)
+    GET    /api/users/{id}/               → single user detail
+    POST   /api/users/                     → create user
+    PATCH  /api/users/{id}/update-role/   → update role + status only
+    DELETE /api/users/{id}/               → soft delete (sets status=inactive)
+    """
     permission_classes = [IsAdminUser]
-    
+
+    def get_queryset(self):
+        qs = User.objects.all().order_by('-date_joined')
+        role = self.request.query_params.get('role')
+        status_filter = self.request.query_params.get('status')
+        search = self.request.query_params.get('search')
+        if role:
+            qs = qs.filter(role=role)
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        if search:
+            qs = qs.filter(
+                models.Q(first_name__icontains=search) |
+                models.Q(last_name__icontains=search) |
+                models.Q(email__icontains=search) |
+                models.Q(username__icontains=search)
+            )
+        return qs
+
     def get_serializer_class(self):
         if self.action == 'create':
             return UserCreateSerializer
+        if self.action == 'update_role':
+            return UserRoleUpdateSerializer
         return UserSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        """Soft delete: set status to inactive instead of deleting the record."""
+        user = self.get_object()
+        if user == request.user:
+            return Response(
+                {'error': 'You cannot deactivate your own account.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        user.status = 'inactive'
+        user.save(update_fields=['status'])
+        return Response({'detail': f'{user.email} has been deactivated.'}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['patch'], url_path='update-role', permission_classes=[IsAdminUser])
+    def update_role(self, request, pk=None):
+        """
+        PATCH /api/users/{id}/update-role/
+        Body: { "role": "technician" }  or  { "status": "inactive" }  or both.
+        """
+        user = self.get_object()
+        if user == request.user:
+            return Response(
+                {'error': 'You cannot change your own role.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        serializer = UserRoleUpdateSerializer(user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(UserSerializer(user, context={'request': request}).data)
 
 class VarietyViewSet(viewsets.ModelViewSet):
     queryset = Variety.objects.all()

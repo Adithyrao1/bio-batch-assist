@@ -85,6 +85,15 @@ export function useDeleteUser() {
   });
 }
 
+export function useUpdateUserRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: { role?: string; status?: string } }) =>
+      usersApi.updateRole(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  });
+}
+
 // ============================================
 // MASTER DATA HOOKS
 // ============================================
