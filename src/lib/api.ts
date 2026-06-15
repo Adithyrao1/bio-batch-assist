@@ -14,7 +14,9 @@ import type {
   StockSolutionPreparation,
   StockSolutionPreparationCreate,
   StockSolutionRecipeItem,
-  StockSolutionRecipeItemCreate
+  StockSolutionRecipeItemCreate,
+  RecentActivity,
+  RecentActivityCreate
 } from '@/types/api';
 
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
@@ -234,7 +236,19 @@ export const authApi = {
     if (!response.ok) throw new Error('Failed to update profile');
     return response.json();
   },
-  
+
+  async patchProfile(data: Partial<User>): Promise<User> {
+    const response = await fetchWithAuth('/auth/profile/', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.username?.[0] || err.detail || 'Failed to update profile');
+    }
+    return response.json();
+  },
+
   async uploadProfilePicture(file: File): Promise<User> {
     const formData = new FormData();
     formData.append('profile_picture', file);
@@ -428,6 +442,14 @@ function createCrudApi<T, TCreate = Partial<T>>(endpoint: string) {
 // ============================================
 export const usersApi = {
   ...createCrudApi<User, UserCreate>('users'),
+
+  async updateRole(id: number, data: { role?: string; status?: string }): Promise<User> {
+    const response = await fetchWithAuth(`/users/${id}/update-role/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+    return handleResponse(response);
+  },
 };
 
 // ============================================

@@ -11,10 +11,23 @@ from .models import (
 # USER SERIALIZERS
 # ============================================
 class UserSerializer(serializers.ModelSerializer):
+    last_login = serializers.DateTimeField(read_only=True, format='%Y-%m-%d %H:%M')
+    date_joined = serializers.DateTimeField(read_only=True, format='%Y-%m-%d')
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'role', 'status', 'profile_picture']
-        read_only_fields = ['id']
+        fields = [
+            'id', 'username', 'first_name', 'last_name', 'email',
+            'role', 'status', 'profile_picture', 'last_login', 'date_joined'
+        ]
+        read_only_fields = ['id', 'last_login', 'date_joined']
+
+
+class UserRoleUpdateSerializer(serializers.ModelSerializer):
+    """Admin-only serializer: only allows updating role and status."""
+    class Meta:
+        model = User
+        fields = ['role', 'status']
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -95,16 +108,26 @@ class TransplantationLogSerializer(serializers.ModelSerializer):
 # AUTH SERIALIZERS
 # ============================================
 class UserProfileSerializer(serializers.ModelSerializer):
-    """Serializer for current user profile"""
+    """Serializer for current user self-profile edit.
+    Users can edit: username, first_name, last_name, profile_picture.
+    Locked fields: email, role, status (only admin can change these).
+    """
     full_name = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'full_name', 'email', 'role', 'status', 'profile_picture']
-        read_only_fields = ['id', 'username', 'role', 'status']
+        read_only_fields = ['id', 'email', 'role', 'status']
 
     def get_full_name(self, obj):
         return obj.get_full_name() or obj.username
+
+    def validate_username(self, value):
+        """Ensure username is unique (excluding the current user)."""
+        user = self.instance
+        if User.objects.exclude(pk=user.pk).filter(username=value).exists():
+            raise serializers.ValidationError('This username is already taken.')
+        return value
 
 
 class RecentActivitySerializer(serializers.ModelSerializer):

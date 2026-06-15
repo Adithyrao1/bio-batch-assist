@@ -19,6 +19,7 @@ export interface User {
   email: string;
   role: 'admin' | 'technician' | 'viewer';
   status: 'active' | 'inactive';
+  last_login?: string | null;
   date_joined?: string;
   profile_picture?: string | null;
 }
