@@ -27,6 +27,7 @@ router.register(r'stock-solutions', views.StockSolutionViewSet, basename='stock-
 router.register(r'stock-preparations', views.StockSolutionPreparationViewSet, basename='stock-preparations')
 router.register(r'expense-categories', views.ExpenseCategoryViewSet)
 router.register(r'expenses', views.ExpenseViewSet)
+router.register(r'manpower', views.ManpowerExpenseViewSet, basename='manpower')
 
 urlpatterns = [
     path('', include(router.urls)),
