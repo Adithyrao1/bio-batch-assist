@@ -477,12 +477,13 @@ class DashboardView(APIView):
             from datetime import date
             start_date = date(2000, 1, 1)
         
-        from django.db.models import F, Q
-        from core.models import Chemical
+        from django.db.models import F, Q, Sum
+        from django.db.models.functions import TruncMonth, TruncDay
+        from core.models import Chemical, StockSolutionChemicalUsage, Expense, Variety
         import duckdb
         import os
         from django.conf import settings
-        
+
         # 1. Low stock chemicals (keep querying live MySQL since it's real-time inventory count)
         low_stock_chemicals = Chemical.objects.filter(
             Q(remaining_stock__lte=F('quantity') * 0.3) | Q(remaining_stock__lte=15)
@@ -594,10 +595,6 @@ class DashboardView(APIView):
 
         if not duckdb_success:
             # === FALLBACK TO DJANGO ORM ===
-            from django.db.models import Sum
-            from django.db.models.functions import TruncMonth, TruncDay
-            from core.models import StockSolutionChemicalUsage, Expense, Variety
-            
             init_logs = InitiationLog.objects.filter(date__gte=start_date)
             mult_logs = MultiplicationLog.objects.filter(date__gte=start_date)
             root_logs = RootingLog.objects.filter(date__gte=start_date)
@@ -673,19 +670,20 @@ class DashboardView(APIView):
             contamination_trend = [{"date": k, "cases": v} for k, v in sorted(cont_dict.items())]
 
         # ── MANPOWER SALARY COST ─────────────────────────────────────────────
-        # Always added here — after both DuckDB and ORM paths — guaranteed inclusion.
-        #
-        # effective_days per record = days from max(start_date, record.created_at.date()) to today
-        # This handles days=0 (all-time) correctly: salary counts from when it was first set.
-        # Formula: daily_rate (= monthly_salary / 30) × effective_days
+        # Runs after both DuckDB and ORM paths — always included.
+        # Logic:
+        #   days > 0  (user picked a range): use exactly `days` × daily_rate
+        #   days = 0  (all-time): count from when each salary record was created → today
         from django.utils.timezone import now as tz_now
         today_date = tz_now().date()
         salary_records = ManpowerExpense.objects.all()
         total_salary_cost = 0.0
         for record in salary_records:
-            # Salary is only valid from when the record was created
-            salary_start = max(start_date, record.created_at.date())
-            effective_days = max(0, (today_date - salary_start).days + 1)
+            if days > 0:
+                effective_days = days
+            else:
+                # All-time: only count from when salary was first recorded
+                effective_days = max(1, (today_date - record.created_at.date()).days + 1)
             total_salary_cost += record.daily_rate * effective_days
         total_cost += total_salary_cost
 
@@ -718,7 +716,6 @@ class DashboardView(APIView):
         contamination_by_stage = [c for c in contamination_by_stage if c["size"] > 0]
 
         # ── COST BREAKDOWN (always from ORM — accurate, real-time) ───────────
-        from django.db.models import Sum as _Sum
         chem_usages_all = StockSolutionChemicalUsage.objects.filter(
             preparation__date__gte=start_date
         ).select_related('chemical')
@@ -727,7 +724,7 @@ class DashboardView(APIView):
             for u in chem_usages_all
         )
         cost_other = float(
-            Expense.objects.filter(date__gte=start_date).aggregate(s=_Sum('amount'))['s'] or 0
+            Expense.objects.filter(date__gte=start_date).aggregate(s=Sum('amount'))['s'] or 0
         )
         cost_manpower = round(total_salary_cost, 2)
 
