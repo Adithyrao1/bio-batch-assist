@@ -5,7 +5,7 @@ import {
   Bot, Send, Loader2, ChevronLeft,
   Sparkles, CornerDownLeft, User, RefreshCw,
   Mic, MicOff, Volume2, VolumeX, ChevronDown,
-  Mail, PieChart, Database
+  Mail, PieChart, Database, Users
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -51,7 +51,17 @@ const STARTER_GROUPS = [
       "Which crop variety has the highest mortality rate?",
       "Pichle mahine me konsi variety me sabse zyada production hua?",
     ]
-  }
+  },
+  {
+    id: "manpower",
+    title: "Manpower & Payroll",
+    icon: Users,
+    prompts: [
+      "Show me the total monthly payroll for all technicians",
+      "What is the salary of Ravi?",
+      "How much did we spend on manpower from 2026-01-01 to 2026-06-15?",
+    ]
+  },
 ];
 
 // ─── Typing indicator ────────────────────────────────────────────────────────
