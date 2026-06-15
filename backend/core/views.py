@@ -673,11 +673,20 @@ class DashboardView(APIView):
             contamination_trend = [{"date": k, "cases": v} for k, v in sorted(cont_dict.items())]
 
         # ── MANPOWER SALARY COST ─────────────────────────────────────────────
-        # Always add salary cost here — AFTER both DuckDB and ORM paths — so it
-        # is guaranteed to be included regardless of which path executed above.
-        # Formula: daily_rate (= monthly_salary / 30) × days_in_range per technician
+        # Always added here — after both DuckDB and ORM paths — guaranteed inclusion.
+        #
+        # effective_days per record = days from max(start_date, record.created_at.date()) to today
+        # This handles days=0 (all-time) correctly: salary counts from when it was first set.
+        # Formula: daily_rate (= monthly_salary / 30) × effective_days
+        from django.utils.timezone import now as tz_now
+        today_date = tz_now().date()
         salary_records = ManpowerExpense.objects.all()
-        total_salary_cost = sum(record.daily_rate * days for record in salary_records)
+        total_salary_cost = 0.0
+        for record in salary_records:
+            # Salary is only valid from when the record was created
+            salary_start = max(start_date, record.created_at.date())
+            effective_days = max(0, (today_date - salary_start).days + 1)
+            total_salary_cost += record.daily_rate * effective_days
         total_cost += total_salary_cost
 
         # Calculate shared metrics
