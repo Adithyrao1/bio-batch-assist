@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { fetchWithAuth } from "@/lib/api";
-import { useExpenses, useExpenseCategories, useCreateExpense, useCreateExpenseCategory, useDeleteExpense } from "@/hooks/useApiQueries";
+import { useExpenses, useExpenseCategories, useCreateExpense, useCreateExpenseCategory, useDeleteExpense, useManpowerExpenses } from "@/hooks/useApiQueries";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Receipt, PieChart as PieChartIcon, Download, Trash2 } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
@@ -42,6 +42,7 @@ export function ExpenseLogTable({ isAdmin }: { isAdmin: boolean }) {
   const createExpenseMutation = useCreateExpense();
   const deleteExpenseMutation = useDeleteExpense();
   const createCategoryMutation = useCreateExpenseCategory();
+  const { data: manpowerData } = useManpowerExpenses();
   const { toast } = useToast();
 
   const [isLogExpenseOpen, setIsLogExpenseOpen] = useState(false);
@@ -170,7 +171,6 @@ export function ExpenseLogTable({ isAdmin }: { isAdmin: boolean }) {
   const itemsPerPage = 10;
   const paginatedExpenses = filteredExpenses.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
-  // Aggregate expenses for the chart
   const expensesByCategory = filteredExpenses.reduce((acc: any, curr: any) => {
     const cat = curr.category_name || "Unknown";
     acc[cat] = (acc[cat] || 0) + Number(curr.amount);
@@ -181,6 +181,15 @@ export function ExpenseLogTable({ isAdmin }: { isAdmin: boolean }) {
     name: key,
     value: expensesByCategory[key],
   }));
+
+  // Add manpower to the chart data
+  const totalManpower = Number(manpowerData?.total_monthly_payroll || 0);
+  if (totalManpower > 0) {
+    chartData.push({
+      name: "Manpower (Salaries)",
+      value: totalManpower,
+    });
+  }
 
   return (
     <div>

@@ -107,6 +107,7 @@ async function refreshToken(): Promise<boolean> {
       last_name: string;
       email: string;
       role: 'admin' | 'technician' | 'viewer';
+      is_onboarded: boolean;
       profile_picture?: string | null;
     };
   }
@@ -374,6 +375,27 @@ export const authApi = {
 
   clearStoredUser(): void {
     localStorage.removeItem('user');
+  },
+
+  async getPendingUsers(): Promise<{ pending_users: Array<{ id: number; username: string; first_name: string; last_name: string; email: string; role: string; date_joined: string }>; count: number }> {
+    const response = await fetchWithAuth('/auth/admin/pending-users/');
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch pending users');
+    }
+    return response.json();
+  },
+
+  async approveUser(userId: number, role: 'technician' | 'admin'): Promise<{ message: string }> {
+    const response = await fetchWithAuth('/auth/admin/approve-user/', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, role }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to approve user');
+    }
+    return response.json();
   },
 };
 

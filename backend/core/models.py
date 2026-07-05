@@ -20,6 +20,10 @@ class User(AbstractUser):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     profile_picture = models.ImageField(upload_to='profile_pictures/', null=True, blank=True)
+    is_onboarded = models.BooleanField(
+        default=False,
+        help_text="Set to True after the user selects their role on first login."
+    )
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
@@ -143,6 +147,9 @@ class HardeningLog(DailyProductionLog):
 class TransplantationLog(DailyProductionLog):
     seedlings_transplanted = models.IntegerField(default=0, help_text="Seedling Transplant in Field (Nos)")
     seedlings_died = models.IntegerField(default=0, help_text="Seedling Dried in Field (Nos)")
+    field_lot_id = models.CharField(max_length=50, blank=True, help_text="Optional: Automatically create a FieldLink Breeder Lot with this ID")
+    farmer = models.ForeignKey('Farmer', on_delete=models.SET_NULL, null=True, blank=True, related_name='transplantation_logs')
+    location = models.ForeignKey('FieldLocation', on_delete=models.SET_NULL, null=True, blank=True, related_name='transplantation_logs')
 
     def __str__(self):
         return f"Transplantation - {self.variety.code} - {self.date}"
@@ -270,3 +277,211 @@ class ManpowerExpense(models.Model):
 
     def __str__(self):
         return f"{self.technician.get_full_name() or self.technician.username} — ₹{self.monthly_salary}/month"
+
+
+# ============================================
+# FIELDLINK — SEED TRACEABILITY MODULE
+# ============================================
+
+class FieldLocation(models.Model):
+    """A named geographic area (e.g. Ajbapur, Rupapur) that contains plots."""
+    TYPE_CHOICES = [
+        ('company_farm', 'Company Farm'),
+        ('contract_farm', 'Contract Farm'),
+    ]
+    name = models.CharField(max_length=100, unique=True)
+    location_type = models.CharField(max_length=30, choices=TYPE_CHOICES, default='company_farm')
+    district = models.CharField(max_length=100, blank=True)
+    state = models.CharField(max_length=100, default='Uttar Pradesh')
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Field Location'
+
+    def __str__(self):
+        return self.name
+
+
+class Plot(models.Model):
+    """A specific plot of land within a FieldLocation."""
+    location = models.ForeignKey(FieldLocation, on_delete=models.PROTECT, related_name='plots')
+    plot_number = models.CharField(max_length=30)
+    area_acres = models.DecimalField(max_digits=8, decimal_places=3, null=True, blank=True)
+    notes = models.TextField(blank=True)
+    # Geo-spatial fields
+    boundaries = models.JSONField(
+        null=True, blank=True,
+        help_text="GeoJSON polygon representing the plot boundary."
+    )
+    centroid_lat = models.DecimalField(
+        max_digits=10, decimal_places=7, null=True, blank=True,
+        help_text="Latitude of the plot center point."
+    )
+    centroid_lng = models.DecimalField(
+        max_digits=10, decimal_places=7, null=True, blank=True,
+        help_text="Longitude of the plot center point."
+    )
+
+    class Meta:
+        unique_together = [['location', 'plot_number']]
+        ordering = ['location', 'plot_number']
+
+    def __str__(self):
+        return f"{self.location.name} — Plot {self.plot_number}"
+
+
+class FieldManager(models.Model):
+    """
+    A field/zone manager responsible for supervising a group of contract farmers
+    in the seed multiplication program.
+    """
+    name = models.CharField(max_length=150)
+    employee_code = models.CharField(max_length=50, unique=True, null=True, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    email = models.EmailField(blank=True)
+    region = models.CharField(
+        max_length=255, blank=True,
+        help_text="Territory or zone managed by this field manager (e.g. Telangana Zone)."
+    )
+    is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Field Manager'
+        verbose_name_plural = 'Field Managers'
+
+    def __str__(self):
+        return f"{self.name} ({self.employee_code or 'N/A'})"
+
+
+class Farmer(models.Model):
+    """A contract farmer who participates in the seed multiplication program."""
+    name = models.CharField(max_length=150)
+    grower_code = models.CharField(max_length=50, unique=True, null=True, blank=True)
+    village = models.CharField(max_length=100)
+    phone = models.CharField(max_length=20, blank=True)
+    aadhar_number = models.CharField(max_length=20, blank=True)
+    primary_location = models.ForeignKey(
+        FieldLocation, on_delete=models.SET_NULL, null=True, blank=True, related_name='farmers'
+    )
+    field_manager = models.ForeignKey(
+        FieldManager, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='farmers',
+        help_text="The field manager responsible for supervising this farmer."
+    )
+    quality_score = models.DecimalField(
+        max_digits=4, decimal_places=1, default=0.0,
+        help_text="Score 0–10 based on seed purity and germination quality."
+    )
+    is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.village})"
+
+
+class SeedLot(models.Model):
+    """
+    A discrete batch of seeds at a specific stage of multiplication.
+    Parent-child links form the traceable genealogy tree.
+    """
+    STAGE_CHOICES = [
+        ('breeder', 'Breeder Seed'),
+        ('foundation', 'Foundation Seed'),
+        ('certified', 'Certified Seed'),
+        ('commercial', 'Commercial Seed'),
+    ]
+    STATUS_CHOICES = [
+        ('in_field', 'In Field'),
+        ('harvested', 'Harvested'),
+        ('dispatched', 'Dispatched'),
+        ('sold', 'Sold'),
+        ('rejected', 'Rejected'),
+    ]
+
+    lot_id = models.CharField(max_length=50, unique=True, help_text="e.g. BR-2026-001")
+    stage = models.CharField(max_length=20, choices=STAGE_CHOICES)
+    parent_lot = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_lots'
+    )
+    # Lab origin (optional — links to the tissue culture batch)
+    lab_batch_reference = models.CharField(
+        max_length=100, blank=True,
+        help_text="Reference to the LabNest TC batch (e.g. TC-2026-045)"
+    )
+    variety = models.ForeignKey(Variety, on_delete=models.PROTECT, related_name='seed_lots')
+    quantity_kg = models.DecimalField(max_digits=12, decimal_places=3)
+    season_year = models.IntegerField(help_text="The crop year this lot belongs to.")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in_field')
+
+    # Location / Custody
+    location = models.ForeignKey(
+        FieldLocation, on_delete=models.SET_NULL, null=True, blank=True, related_name='seed_lots'
+    )
+    plot = models.ForeignKey(
+        Plot, on_delete=models.SET_NULL, null=True, blank=True, related_name='seed_lots'
+    )
+    custom_plot_id = models.CharField(max_length=50, blank=True, null=True)
+    custom_coordinates = models.CharField(max_length=100, blank=True, null=True)
+    farmer = models.ForeignKey(
+        Farmer, on_delete=models.SET_NULL, null=True, blank=True, related_name='seed_lots'
+    )
+
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        'User', on_delete=models.PROTECT, related_name='created_seed_lots'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-season_year', 'stage', 'lot_id']
+        verbose_name = 'Seed Lot'
+
+    def __str__(self):
+        return f"{self.lot_id} [{self.get_stage_display()}] — {self.quantity_kg}kg ({self.season_year})"
+
+    @property
+    def holder_name(self):
+        if self.farmer:
+            return self.farmer.name
+        if self.location:
+            return self.location.name
+        return "Unassigned"
+
+
+class SeedLotTransaction(models.Model):
+    """
+    Immutable ledger of events affecting a seed lot.
+    Every dispatch, harvest return, or status change is recorded here.
+    """
+    TXN_TYPE_CHOICES = [
+        ('dispatch', 'Dispatched to Farmer'),
+        ('harvest', 'Harvest Received from Farmer'),
+        ('status_change', 'Status Changed'),
+        ('transfer', 'Lot Transferred'),
+    ]
+    seed_lot = models.ForeignKey(SeedLot, on_delete=models.CASCADE, related_name='transactions')
+    txn_type = models.CharField(max_length=20, choices=TXN_TYPE_CHOICES)
+    quantity_kg = models.DecimalField(max_digits=12, decimal_places=3, null=True, blank=True)
+    farmer = models.ForeignKey(Farmer, on_delete=models.SET_NULL, null=True, blank=True)
+    location = models.ForeignKey(FieldLocation, on_delete=models.SET_NULL, null=True, blank=True)
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey('User', on_delete=models.PROTECT, related_name='field_transactions')
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-recorded_at']
+        verbose_name = 'Seed Lot Transaction'
+
+    def __str__(self):
+        return f"{self.get_txn_type_display()} — {self.seed_lot.lot_id} on {self.recorded_at.date()}"
+

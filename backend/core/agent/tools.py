@@ -810,30 +810,653 @@ def get_manpower_cost_for_period(from_date: str, to_date: str) -> str:
     return "\n".join(lines)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# DOMAIN 10 — Field Locations & Plots
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@tool
+def get_all_field_locations() -> str:
+    """
+    Returns all registered field locations (e.g. Loni, Hariawan, Ajbapur, Rupapur)
+    with their type (company/contract farm), district, and number of plots.
+    Use this when the user asks about locations, sites, or field areas.
+    No arguments required.
+    """
+    from core.models import FieldLocation
+    locations = FieldLocation.objects.prefetch_related('plots').all()
+    if not locations:
+        return "No field locations found."
+    lines = ["Field Locations:\n"]
+    for loc in locations:
+        plot_count = loc.plots.count()
+        lines.append(
+            f"- {loc.name} ({loc.location_type.replace('_', ' ').title()})\n"
+            f"  District: {loc.district or 'N/A'}, State: {loc.state}\n"
+            f"  Plots: {plot_count}"
+        )
+    return "\n".join(lines)
+
+
+@tool
+def get_plots_by_location(location_name: str) -> str:
+    """
+    Returns all plots at a given field location, with area and active seed lots.
+    Use this when the user asks about plots at a specific location.
+
+    Args:
+        location_name: Full or partial name of the location (e.g. 'Loni', 'Ajbapur').
+    """
+    from core.models import FieldLocation, Plot
+    try:
+        loc = FieldLocation.objects.get(name__icontains=location_name)
+    except FieldLocation.DoesNotExist:
+        return f"No location found matching '{location_name}'."
+    except FieldLocation.MultipleObjectsReturned:
+        names = list(FieldLocation.objects.filter(name__icontains=location_name).values_list('name', flat=True))
+        return f"Multiple locations match '{location_name}': {names}. Please be more specific."
+
+    plots = Plot.objects.filter(location=loc).prefetch_related('seed_lots')
+    if not plots:
+        return f"No plots registered under {loc.name}."
+
+    lines = [f"Plots at {loc.name}:\n"]
+    for p in plots:
+        active_lots = p.seed_lots.filter(status='in_field').count()
+        area = f"{p.area_acres} acres" if p.area_acres else "area not recorded"
+        lines.append(f"- Plot {p.plot_number} | {area} | Active seed lots: {active_lots}")
+    return "\n".join(lines)
+
+
+@tool
+def get_plot_details(plot_id: str) -> str:
+    """
+    Returns detailed information about a specific plot, including its area, location, and coordinate presence.
+    Use this when the user asks about a specific plot number or ID.
+
+    Args:
+        plot_id: The plot number or ID (e.g. 'A1', 'PLOT-001').
+    """
+    from core.models import Plot
+    plots = Plot.objects.filter(plot_number__icontains=plot_id).select_related('location')
+    if not plots.exists():
+        return f"No plot found matching '{plot_id}'."
+
+    lines = []
+    for p in plots:
+        loc = p.location.name if p.location else "Unknown Location"
+        area = f"{p.area_acres} acres" if p.area_acres else "Unknown Area"
+        coords = "Yes" if p.boundaries else "No"
+        centroid = f"({p.centroid_lat}, {p.centroid_lng})" if p.centroid_lat and p.centroid_lng else "Not calculated"
+        
+        lines.append(
+            f"Plot: {p.plot_number}\n"
+            f"  Location: {loc}\n"
+            f"  Area: {area}\n"
+            f"  Polygon Mapped: {coords}\n"
+            f"  Centroid: {centroid}"
+        )
+    return "\n\n".join(lines)
+
+
+@tool
+def get_total_acreage_by_location() -> str:
+    """
+    Returns the total cultivated area (acreage) grouped by field location.
+    Use this when the user asks about the total farm size, acreage per location, or how much land is mapped.
+    No arguments required.
+    """
+    from core.models import FieldLocation, Plot
+    from django.db.models import Sum
+
+    locations = FieldLocation.objects.all()
+    if not locations.exists():
+        return "No field locations found."
+
+    lines = ["Total Acreage by Location:\n"]
+    total_area = 0.0
+
+    for loc in locations:
+        area = Plot.objects.filter(location=loc).aggregate(s=Sum('area_acres'))['s'] or 0.0
+        total_area += float(area)
+        lines.append(f"- {loc.name}: {float(area):,.2f} acres")
+        
+    lines.append(f"\nTotal Mapped Area Across All Locations: {total_area:,.2f} acres")
+    return "\n".join(lines)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DOMAIN 11 — Farmers
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@tool
+def get_all_farmers(location_name: str = "") -> str:
+    """
+    Returns all contract farmers in the seed multiplication programme.
+    Optionally filter by their primary location.
+    Use this when the user wants a list of farmers, participants, or growers.
+
+    Args:
+        location_name: Optional. Filter by location name (e.g. 'Hariawan'). Leave blank for all.
+    """
+    from core.models import Farmer
+    qs = Farmer.objects.select_related('primary_location').filter(is_active=True)
+    if location_name:
+        qs = qs.filter(primary_location__name__icontains=location_name)
+    if not qs.exists():
+        return f"No active farmers found{' at ' + location_name if location_name else ''}."
+
+    lines = [f"Active Farmers ({qs.count()} total):\n"]
+    for f in qs:
+        loc = f.primary_location.name if f.primary_location else "No location"
+        lines.append(
+            f"- {f.name} | Village: {f.village} | Location: {loc} | Quality Score: {f.quality_score}/10"
+        )
+    return "\n".join(lines)
+
+
+@tool
+def get_farmer_detail(farmer_name: str) -> str:
+    """
+    Returns the full profile of a specific farmer including their contact info,
+    quality score, and a list of seed lots currently in their custody.
+    Use this when the user asks about a specific farmer.
+
+    Args:
+        farmer_name: Full or partial name of the farmer.
+    """
+    from core.models import Farmer
+    farmers = Farmer.objects.filter(name__icontains=farmer_name).select_related('primary_location').prefetch_related('seed_lots__variety')
+    if not farmers.exists():
+        return f"No farmer found matching '{farmer_name}'."
+
+    lines = []
+    for f in farmers:
+        lots = f.seed_lots.all()
+        lot_lines = [
+            f"  · {lot.lot_id} [{lot.get_stage_display()}] — {lot.quantity_kg}kg ({lot.get_status_display()})"
+            for lot in lots
+        ] or ["  · No seed lots currently assigned."]
+        lines.append(
+            f"Farmer: {f.name}\n"
+            f"  Village       : {f.village}\n"
+            f"  Phone         : {f.phone or 'N/A'}\n"
+            f"  Primary Loc   : {f.primary_location.name if f.primary_location else 'N/A'}\n"
+            f"  Quality Score : {f.quality_score}/10\n"
+            f"  Status        : {'Active' if f.is_active else 'Inactive'}\n"
+            f"  Notes         : {f.notes or 'None'}\n"
+            f"  Seed Lots held:\n" + "\n".join(lot_lines)
+        )
+    return "\n\n".join(lines)
+
+
+@tool
+def get_top_farmers_by_quality() -> str:
+    """
+    Returns farmers ranked by their quality score (highest first).
+    Use this when the user asks who the best performing farmers are,
+    or who has the highest seed purity / germination quality.
+    No arguments required.
+    """
+    from core.models import Farmer
+    farmers = Farmer.objects.filter(is_active=True).select_related('primary_location').order_by('-quality_score')
+    if not farmers.exists():
+        return "No active farmers found."
+
+    lines = ["Farmers ranked by quality score:\n"]
+    for i, f in enumerate(farmers, 1):
+        loc = f.primary_location.name if f.primary_location else "—"
+        lines.append(f"{i}. {f.name} ({f.village}, {loc}) — Score: {f.quality_score}/10")
+    return "\n".join(lines)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DOMAIN 12 — Seed Lots
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@tool
+def get_all_seed_lots(stage: str = "", status: str = "") -> str:
+    """
+    Lists seed lots, optionally filtered by stage and/or status.
+    Use when user asks to list seed lots or wants an overview of the seed inventory.
+
+    Args:
+        stage: Optional. One of: 'breeder', 'foundation', 'certified', 'commercial'. Leave blank for all.
+        status: Optional. One of: 'in_field', 'harvested', 'dispatched', 'rejected'. Leave blank for all.
+    """
+    from core.models import SeedLot
+    qs = SeedLot.objects.select_related('variety', 'location', 'farmer')
+    if stage:
+        qs = qs.filter(stage__icontains=stage)
+    if status:
+        qs = qs.filter(status__icontains=status)
+    if not qs.exists():
+        return f"No seed lots found{' for stage=' + stage if stage else ''}{' status=' + status if status else ''}."
+
+    lines = [f"Seed Lots ({qs.count()} found):\n"]
+    for lot in qs[:50]:
+        holder = lot.farmer.name if lot.farmer else (lot.location.name if lot.location else "Unassigned")
+        lines.append(
+            f"- {lot.lot_id} | {lot.get_stage_display()} | {lot.variety.code} | "
+            f"{lot.quantity_kg}kg | {lot.get_status_display()} | Holder: {holder} | Season: {lot.season_year}"
+        )
+    if qs.count() > 50:
+        lines.append(f"\n... and {qs.count() - 50} more lots.")
+    return "\n".join(lines)
+
+
+@tool
+def get_seed_lot_detail(lot_id: str) -> str:
+    """
+    Returns the full details of a specific seed lot including variety, quantity,
+    location, farmer, parent lot, and lab batch reference.
+    Use when the user asks about a specific lot ID.
+
+    Args:
+        lot_id: The lot identifier (e.g. 'BR-2026-001').
+    """
+    from core.models import SeedLot
+    try:
+        lot = SeedLot.objects.select_related('variety', 'location', 'plot', 'farmer', 'parent_lot', 'created_by').get(lot_id__iexact=lot_id)
+    except SeedLot.DoesNotExist:
+        return f"No seed lot found with ID '{lot_id}'."
+
+    children = lot.child_lots.all()
+    child_str = ", ".join(c.lot_id for c in children) if children else "None"
+
+    return (
+        f"Seed Lot: {lot.lot_id}\n"
+        f"  Stage          : {lot.get_stage_display()}\n"
+        f"  Variety        : {lot.variety.name} ({lot.variety.code})\n"
+        f"  Quantity       : {lot.quantity_kg} kg\n"
+        f"  Status         : {lot.get_status_display()}\n"
+        f"  Season         : {lot.season_year}\n"
+        f"  Location       : {lot.location.name if lot.location else 'N/A'}\n"
+        f"  Plot           : {lot.plot.plot_number if lot.plot else 'N/A'}\n"
+        f"  Farmer         : {lot.farmer.name if lot.farmer else 'N/A'}\n"
+        f"  Parent Lot     : {lot.parent_lot.lot_id if lot.parent_lot else 'None (root lot)'}\n"
+        f"  Child Lots     : {child_str}\n"
+        f"  Lab Batch Ref  : {lot.lab_batch_reference or 'Not linked'}\n"
+        f"  Created By     : {lot.created_by.get_full_name() or lot.created_by.username}\n"
+        f"  Created At     : {lot.created_at.strftime('%d %b %Y')}\n"
+        f"  Notes          : {lot.notes or 'None'}"
+    )
+
+
+@tool
+def get_seed_inventory_summary() -> str:
+    """
+    Returns an aggregated summary of all seed lots grouped by stage and by location.
+    Use this for management-level questions like 'how much foundation seed do we have'
+    or 'give me a summary of our seed inventory'.
+    No arguments required.
+    """
+    from core.models import SeedLot
+    from django.db.models import Sum, Count
+
+    by_stage = (
+        SeedLot.objects.values('stage')
+        .annotate(total_kg=Sum('quantity_kg'), count=Count('id'))
+        .order_by('stage')
+    )
+    by_location = (
+        SeedLot.objects.filter(location__isnull=False)
+        .values('location__name')
+        .annotate(total_kg=Sum('quantity_kg'), count=Count('id'))
+        .order_by('-total_kg')
+    )
+
+    stage_order = ['breeder', 'foundation', 'certified', 'commercial']
+    stage_labels = {'breeder': 'Breeder', 'foundation': 'Foundation', 'certified': 'Certified', 'commercial': 'Commercial'}
+
+    lines = ["Seed Inventory Summary\n", "By Stage:"]
+    stage_map = {r['stage']: r for r in by_stage}
+    for s in stage_order:
+        r = stage_map.get(s)
+        if r:
+            lines.append(f"  {stage_labels[s]:12s}: {r['count']} lots | {float(r['total_kg']):,.1f} kg")
+
+    lines.append("\nBy Location:")
+    for r in by_location:
+        lines.append(f"  {r['location__name']:15s}: {r['count']} lots | {float(r['total_kg']):,.1f} kg")
+
+    total_kg = sum(float(r['total_kg']) for r in by_stage)
+    total_lots = sum(r['count'] for r in by_stage)
+    lines.append(f"\nGRAND TOTAL: {total_lots} lots | {total_kg:,.1f} kg across all stages")
+    return "\n".join(lines)
+
+
+@tool
+def get_seed_lots_by_location(location_name: str) -> str:
+    """
+    Returns all seed lots at a given field location, grouped by stage.
+    Use when the user asks what seeds are present at a specific location.
+
+    Args:
+        location_name: Name of the location (e.g. 'Loni', 'Rupapur').
+    """
+    from core.models import SeedLot
+    qs = SeedLot.objects.filter(location__name__icontains=location_name).select_related('variety', 'farmer')
+    if not qs.exists():
+        return f"No seed lots found at location '{location_name}'."
+
+    from collections import defaultdict
+    by_stage = defaultdict(list)
+    for lot in qs:
+        by_stage[lot.get_stage_display()].append(
+            f"    · {lot.lot_id} | {lot.variety.code} | {lot.quantity_kg}kg | {lot.get_status_display()}"
+            + (f" | Farmer: {lot.farmer.name}" if lot.farmer else "")
+        )
+
+    lines = [f"Seed lots at {location_name} ({qs.count()} total):\n"]
+    for stage, items in by_stage.items():
+        lines.append(f"{stage}:")
+        lines.extend(items)
+    return "\n".join(lines)
+
+
+@tool
+def get_seed_lots_by_variety(variety_name: str) -> str:
+    """
+    Returns all seed lots for a given variety across all stages and locations.
+    Use when the user asks about a specific variety's field presence.
+
+    Args:
+        variety_name: Variety name or code (e.g. 'Co-0238', 'CoLk').
+    """
+    from core.models import SeedLot
+    qs = SeedLot.objects.filter(
+        variety__name__icontains=variety_name
+    ).select_related('variety', 'location', 'farmer') | SeedLot.objects.filter(
+        variety__code__icontains=variety_name
+    ).select_related('variety', 'location', 'farmer')
+    qs = qs.distinct()
+
+    if not qs.exists():
+        return f"No seed lots found for variety '{variety_name}'."
+
+    lines = [f"Seed lots for variety '{variety_name}' ({qs.count()} total):\n"]
+    for lot in qs:
+        holder = lot.farmer.name if lot.farmer else (lot.location.name if lot.location else "Unassigned")
+        lines.append(
+            f"- {lot.lot_id} | {lot.get_stage_display()} | {lot.quantity_kg}kg | "
+            f"{lot.get_status_display()} | {holder} | Season {lot.season_year}"
+        )
+    return "\n".join(lines)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DOMAIN 13 — Seed Lot Transactions (Audit Trail)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@tool
+def get_transactions_for_lot(lot_id: str) -> str:
+    """
+    Returns the full transaction history for a specific seed lot — all dispatches,
+    harvest returns, transfers, and status changes in chronological order.
+    Use when the user wants to trace the history or audit trail of a lot.
+
+    Args:
+        lot_id: The lot identifier (e.g. 'BR-2026-001').
+    """
+    from core.models import SeedLotTransaction
+    txns = SeedLotTransaction.objects.filter(
+        seed_lot__lot_id__iexact=lot_id
+    ).select_related('farmer', 'location', 'recorded_by').order_by('recorded_at')
+
+    if not txns.exists():
+        return f"No transactions found for lot '{lot_id}'."
+
+    lines = [f"Transaction history for {lot_id}:\n"]
+    for t in txns:
+        parts = [f"[{t.recorded_at.strftime('%d %b %Y')}] {t.get_txn_type_display()}"]
+        if t.quantity_kg:
+            parts.append(f"Qty: {t.quantity_kg}kg")
+        if t.farmer:
+            parts.append(f"Farmer: {t.farmer.name}")
+        if t.location:
+            parts.append(f"Location: {t.location.name}")
+        if t.notes:
+            parts.append(f"Note: {t.notes}")
+        parts.append(f"By: {t.recorded_by.get_full_name() or t.recorded_by.username}")
+        lines.append("  " + " | ".join(parts))
+    return "\n".join(lines)
+
+
+@tool
+def get_recent_dispatches(days: int = 30) -> str:
+    """
+    Returns all seed dispatch transactions in the last N days.
+    Shows who received what quantity, from which lot, and at which location.
+    Use when the user asks about recent dispatches, deliveries, or seed distribution.
+
+    Args:
+        days: Number of past days to look back (default 30).
+    """
+    from core.models import SeedLotTransaction
+    from django.utils import timezone
+    from datetime import timedelta
+
+    cutoff = timezone.now() - timedelta(days=days)
+    txns = SeedLotTransaction.objects.filter(
+        txn_type='dispatch',
+        recorded_at__gte=cutoff
+    ).select_related('seed_lot__variety', 'farmer', 'location').order_by('-recorded_at')
+
+    if not txns.exists():
+        return f"No dispatch transactions found in the last {days} days."
+
+    lines = [f"Dispatches in the last {days} days ({txns.count()} records):\n"]
+    for t in txns:
+        farmer_name = t.farmer.name if t.farmer else "—"
+        loc_name = t.location.name if t.location else "—"
+        lines.append(
+            f"- {t.recorded_at.strftime('%d %b %Y')} | Lot: {t.seed_lot.lot_id} "
+            f"({t.seed_lot.variety.code}) | {t.quantity_kg}kg → Farmer: {farmer_name} | Location: {loc_name}"
+        )
+    return "\n".join(lines)
+
+
+@tool
+def get_harvest_summary(location_name: str = "") -> str:
+    """
+    Returns aggregated harvest quantities received from farmers.
+    Optionally filter by location. Use when the user asks about harvest totals,
+    yield, or how much seed was returned from the field.
+
+    Args:
+        location_name: Optional. Filter by location name. Leave blank for all locations.
+    """
+    from core.models import SeedLotTransaction
+    from django.db.models import Sum
+
+    qs = SeedLotTransaction.objects.filter(txn_type='harvest')
+    if location_name:
+        qs = qs.filter(location__name__icontains=location_name)
+
+    if not qs.exists():
+        return f"No harvest records found{' for ' + location_name if location_name else ''}."
+
+    total = qs.aggregate(total=Sum('quantity_kg'))['total'] or 0
+
+    by_location = (
+        qs.values('location__name')
+        .annotate(total_kg=Sum('quantity_kg'))
+        .order_by('-total_kg')
+    )
+
+    lines = [f"Harvest Summary{' — ' + location_name if location_name else ''}:\n"]
+    for row in by_location:
+        loc = row['location__name'] or 'Unknown'
+        lines.append(f"  {loc:15s}: {float(row['total_kg']):,.1f} kg")
+    lines.append(f"\nTOTAL HARVESTED: {float(total):,.1f} kg")
+    return "\n".join(lines)
+
+
+@tool
+def get_farmer_transaction_history(farmer_name: str) -> str:
+    """
+    Returns all dispatch and harvest transactions involving a specific farmer.
+    Use when the user wants to know a farmer's complete seed exchange record.
+
+    Args:
+        farmer_name: Full or partial name of the farmer.
+    """
+    from core.models import SeedLotTransaction
+    txns = SeedLotTransaction.objects.filter(
+        farmer__name__icontains=farmer_name
+    ).select_related('seed_lot__variety', 'location', 'recorded_by').order_by('-recorded_at')
+
+    if not txns.exists():
+        return f"No transactions found for farmer '{farmer_name}'."
+
+    lines = [f"Transaction history for farmer '{farmer_name}' ({txns.count()} records):\n"]
+    for t in txns:
+        loc = t.location.name if t.location else "—"
+        qty = f"{t.quantity_kg}kg" if t.quantity_kg else "—"
+        lines.append(
+            f"- [{t.recorded_at.strftime('%d %b %Y')}] {t.get_txn_type_display()} | "
+            f"Lot: {t.seed_lot.lot_id} ({t.seed_lot.variety.code}) | {qty} | Location: {loc}"
+        )
+    return "\n".join(lines)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DOMAIN 14 — Cross-Module (LabNest × FieldLink)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@tool
+def get_variety_full_pipeline(variety_name: str) -> str:
+    """
+    Returns the complete end-to-end pipeline status for a variety — combining
+    LabNest production data (initiation through transplantation) with FieldLink
+    field data (seed lots, locations, farmers). Supports both variety name and code.
+    Use when the user asks to trace a variety from lab to field, or wants a
+    full pipeline or lifecycle report for a specific variety.
+
+    Args:
+        variety_name: Variety name or code (e.g. 'Co-0238', 'CoLk 8001').
+    """
+    from core.models import (
+        Variety, InitiationLog, MultiplicationLog, RootingLog,
+        HardeningLog, TransplantationLog, SeedLot
+    )
+    from django.db.models import Sum
+
+    # Find variety (support both name and code)
+    variety = None
+    for v in Variety.objects.all():
+        if variety_name.lower() in v.name.lower() or variety_name.lower() in v.code.lower():
+            variety = v
+            break
+
+    if not variety:
+        return f"No variety found matching '{variety_name}'."
+
+    # ── LabNest Production ──
+    init_total   = InitiationLog.objects.filter(variety=variety).aggregate(t=Sum('bottles_inoculated'))['t'] or 0
+    mult_total   = MultiplicationLog.objects.filter(variety=variety).aggregate(t=Sum('bottles_produced'))['t'] or 0
+    root_total   = RootingLog.objects.filter(variety=variety).aggregate(t=Sum('rooting_bottles'))['t'] or 0
+    hard_total   = HardeningLog.objects.filter(variety=variety).aggregate(t=Sum('seedlings_transplanted'))['t'] or 0
+    trans_total  = TransplantationLog.objects.filter(variety=variety).aggregate(t=Sum('seedlings_transplanted'))['t'] or 0
+
+    # ── FieldLink Seed Lots ──
+    lots = SeedLot.objects.filter(variety=variety).select_related('location', 'farmer')
+    lot_count  = lots.count()
+    total_kg   = float(lots.aggregate(t=Sum('quantity_kg'))['t'] or 0)
+    in_field   = lots.filter(status='in_field')
+    harvested  = lots.filter(status='harvested')
+    dispatched = lots.filter(status='dispatched')
+
+    lines = [
+        f"Full Pipeline Report — {variety.name} ({variety.code})\n",
+        "━━ LabNest (Tissue Culture Production) ━━",
+        f"  Initiation (bottles inoculated) : {init_total:,}",
+        f"  Multiplication (bottles produced): {mult_total:,}",
+        f"  Rooting (rooting bottles)        : {root_total:,}",
+        f"  Hardening (seedlings)            : {hard_total:,}",
+        f"  Transplanted to field            : {trans_total:,}",
+        "",
+        "━━ FieldLink (Seed Multiplication) ━━",
+        f"  Total Seed Lots     : {lot_count}",
+        f"  Total Quantity      : {total_kg:,.1f} kg",
+        f"  In Field            : {in_field.count()} lots",
+        f"  Harvested           : {harvested.count()} lots",
+        f"  Dispatched          : {dispatched.count()} lots",
+    ]
+
+    if in_field.exists():
+        lines.append("\n  Active Field Lots:")
+        for lot in in_field[:10]:
+            holder = lot.farmer.name if lot.farmer else (lot.location.name if lot.location else "—")
+            lines.append(f"    · {lot.lot_id} [{lot.get_stage_display()}] — {lot.quantity_kg}kg @ {holder}")
+
+    return "\n".join(lines)
+
+
+@tool
+def get_active_varieties_in_both_modules() -> str:
+    """
+    Lists varieties that are simultaneously active in LabNest (recent production logs)
+    AND in FieldLink (seed lots with status 'in_field').
+    Use when the user asks which varieties are in both lab and field, or for a
+    cross-module activity overview.
+    No arguments required.
+    """
+    from core.models import Variety, InitiationLog, SeedLot
+    from django.utils import timezone
+    from datetime import timedelta
+
+    cutoff = timezone.now() - timedelta(days=90)
+
+    # Varieties active in lab (any log in last 90 days)
+    lab_active_ids = set(
+        InitiationLog.objects.filter(date__gte=cutoff.date())
+        .values_list('variety_id', flat=True)
+    )
+
+    # Varieties active in field
+    field_active_ids = set(
+        SeedLot.objects.filter(status='in_field')
+        .values_list('variety_id', flat=True)
+    )
+
+    both = lab_active_ids & field_active_ids
+
+    if not both:
+        return "No varieties are currently active in both LabNest and FieldLink simultaneously."
+
+    varieties = Variety.objects.filter(id__in=both)
+    lines = [f"Varieties active in BOTH LabNest & FieldLink ({len(both)} found):\n"]
+    for v in varieties:
+        field_lots = SeedLot.objects.filter(variety=v, status='in_field').count()
+        lines.append(f"- {v.name} ({v.code}) | Field: {field_lots} active lot(s)")
+    return "\n".join(lines)
+
+
 ALL_TOOLS = [
-    # Domain 1
+    # Domain 1 — Chemical Inventory
     get_all_chemicals_stock,
     get_expiring_chemicals,
     get_low_stock_chemicals,
     get_chemical_detail,
-    # Domain 2
+    # Domain 2 — Stock Solutions
     get_stock_solution_inventory,
     get_critical_stock_solutions,
     get_stock_solution_preparations,
     get_stock_solution_recipe,
-    # Domain 3
+    # Domain 3 — Contamination
     get_contamination_summary,
     get_contamination_by_variety,
-    # Domain 4
+    # Domain 4 — Production
     get_production_summary,
     get_stage_production_history,
-    # Domain 5
+    # Domain 5 — Mortality
     get_mortality_summary,
-    # Domain 6
+    # Domain 6 — Expenses
     get_expenses_summary,
-    # Domain 7
+    # Domain 7 — Dashboard
     get_dashboard_snapshot,
-    # Domain 8
+    # Domain 8 — Reports / Email / RAG / Charts
     send_weekly_lab_report,
     send_chemical_expiry_alert,
     search_lab_protocols,
@@ -844,4 +1467,28 @@ ALL_TOOLS = [
     get_manpower_payroll_summary,
     get_technician_salary,
     get_manpower_cost_for_period,
+    # Domain 10 — Field Locations & Plots
+    get_all_field_locations,
+    get_plots_by_location,
+    get_plot_details,
+    get_total_acreage_by_location,
+    # Domain 11 — Farmers
+    get_all_farmers,
+    get_farmer_detail,
+    get_top_farmers_by_quality,
+    # Domain 12 — Seed Lots
+    get_all_seed_lots,
+    get_seed_lot_detail,
+    get_seed_inventory_summary,
+    get_seed_lots_by_location,
+    get_seed_lots_by_variety,
+    # Domain 13 — Seed Lot Transactions
+    get_transactions_for_lot,
+    get_recent_dispatches,
+    get_harvest_summary,
+    get_farmer_transaction_history,
+    # Domain 14 — Cross-Module (LabNest × FieldLink)
+    get_variety_full_pipeline,
+    get_active_varieties_in_both_modules,
 ]
+

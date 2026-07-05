@@ -3,7 +3,8 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
     User, Variety,
     Chemical, StockSolution, StockSolutionRecipeItem, StockSolutionPreparation, StockSolutionChemicalUsage,
-    InitiationLog, MultiplicationLog, RootingLog, HardeningLog, TransplantationLog
+    InitiationLog, MultiplicationLog, RootingLog, HardeningLog, TransplantationLog,
+    FieldManager, Farmer
 )
 
 
@@ -85,3 +86,22 @@ class HardeningLogAdmin(admin.ModelAdmin):
 class TransplantationLogAdmin(admin.ModelAdmin):
     list_display = ['variety', 'date', 'technician', 'seedlings_transplanted']
     list_filter = ['variety', 'date']
+
+
+@admin.register(FieldManager)
+class FieldManagerAdmin(admin.ModelAdmin):
+    list_display = ['name', 'employee_code', 'region', 'phone', 'email', 'farmer_count', 'is_active']
+    list_filter = ['is_active', 'region']
+    search_fields = ['name', 'employee_code', 'region']
+
+    def farmer_count(self, obj):
+        return obj.farmers.count()
+    farmer_count.short_description = 'Farmers'
+
+
+@admin.register(Farmer)
+class FarmerAdmin(admin.ModelAdmin):
+    list_display = ['name', 'grower_code', 'village', 'field_manager', 'is_active', 'quality_score']
+    list_filter = ['is_active', 'field_manager']
+    search_fields = ['name', 'grower_code', 'village']
+    autocomplete_fields = ['field_manager']

@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
+import { NavLink as RouterNavLink, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   FlaskConical,
   Beaker,
-  Sprout,
   Database,
   Users,
   ChevronDown,
@@ -16,7 +15,11 @@ import {
   DollarSign,
   Activity,
   HardHat,
+  Rocket,
+  ChevronLeft,
 } from "lucide-react";
+import { BrandLogo } from "@/components/ui/BrandLogo";
+import { cn } from "@/lib/utils";
 import {
   Sidebar,
   SidebarContent,
@@ -35,21 +38,21 @@ const NAV_ITEMS = [
     url: "/daily-production",
     icon: Activity,
     subItems: [
-      { title: "Initiation",      url: "/daily-production?stage=initiation",      icon: FlaskConical },
-      { title: "Multiplication",  url: "/daily-production?stage=multiplication",  icon: Layers },
-      { title: "Rooting",         url: "/daily-production?stage=rooting",         icon: Leaf },
-      { title: "Hardening",       url: "/daily-production?stage=hardening",       icon: Sun },
+      { title: "Initiation", url: "/daily-production?stage=initiation", icon: FlaskConical },
+      { title: "Multiplication", url: "/daily-production?stage=multiplication", icon: Layers },
+      { title: "Rooting", url: "/daily-production?stage=rooting", icon: Leaf },
+      { title: "Hardening", url: "/daily-production?stage=hardening", icon: Sun },
       { title: "Transplantation", url: "/daily-production?stage=transplantation", icon: ArrowUpRight },
     ],
   },
-  { title: "Chemicals & Stocks", url: "/chemicals",  icon: Beaker },
-  { title: "Expenses & Costing", url: "/expenses",   icon: DollarSign },
+  { title: "Chemicals & Stocks", url: "/chemicals", icon: Beaker },
+  { title: "Expenses & Costing", url: "/expenses", icon: DollarSign },
 ];
 
 const ADMIN_ITEMS = [
   { title: "Master Data", url: "/master-data", icon: Database },
-  { title: "Users",       url: "/users",       icon: Users },
-  { title: "Manpower",   url: "/manpower",    icon: HardHat },
+  { title: "Users", url: "/users", icon: Users },
+  { title: "Manpower", url: "/manpower", icon: HardHat },
 ];
 
 type NavItemType = any;
@@ -155,6 +158,7 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const isActive = (path: string) => location.pathname === path;
 
@@ -164,8 +168,8 @@ export function AppSidebar() {
 
         {/* Brand header */}
         <div className={`flex items-center gap-3 px-4 py-4 border-b border-[hsl(var(--sidebar-border))] ${collapsed ? "justify-center px-2" : ""}`}>
-          <div className="shrink-0 h-8 w-8 rounded-sm bg-[hsl(var(--sidebar-primary))] flex items-center justify-center">
-            <Sprout className="h-4 w-4 text-white" />
+          <div className={`shrink-0 ${collapsed ? "h-8 w-8" : "h-8 w-8"}`}>
+            <BrandLogo size="h-8 w-8" rounded="rounded-lg" />
           </div>
 
           <AnimatePresence>
@@ -211,7 +215,7 @@ export function AppSidebar() {
           {!collapsed && (
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="mt-auto px-3 py-3 border-t border-[hsl(var(--sidebar-border))]"
+              className="mt-auto px-3 py-3"
             >
               <p className="text-[10px] text-[hsl(var(--sidebar-foreground))]/30 text-center tracking-wide">
                 v1.0 — DCM Shriram Ltd.
@@ -221,6 +225,19 @@ export function AppSidebar() {
         </AnimatePresence>
 
       </SidebarContent>
+
+      <div className="p-4 border-t border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar-background))]">
+        <button
+          onClick={() => navigate("/launchpad")}
+          className={cn(
+            "flex items-center gap-3 w-full p-2 rounded-xl text-[hsl(var(--sidebar-foreground))]/60 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-accent-foreground))] transition-colors",
+            collapsed ? "justify-center" : ""
+          )}
+        >
+          <ChevronLeft className="h-5 w-5" />
+          {!collapsed && <span className="text-sm font-medium">Back to Launchpad</span>}
+        </button>
+      </div>
     </Sidebar>
   );
 }

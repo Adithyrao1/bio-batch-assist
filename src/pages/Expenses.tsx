@@ -24,6 +24,7 @@ export default function Expenses() {
   const isAdmin = user?.role === "admin";
   const [activeTab, setActiveTab] = useState("dashboard");
   const [date, setDate] = useState<DateRange | undefined>(undefined);
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
 
   const dashboardParams = useMemo(() => {
     if (date?.from && date?.to) {
@@ -65,7 +66,6 @@ export default function Expenses() {
     { id: "dashboard", label: "Cost Dashboard", icon: TrendingDown },
     { id: "chemicals", label: "Chemical Pricing", icon: Beaker },
     { id: "logs",      label: "Other Expenses",  icon: FileText },
-    ...(isAdmin ? [{ id: "manpower", label: "Manpower", icon: Users }] : []),
   ];
 
   return (
@@ -151,8 +151,6 @@ export default function Expenses() {
             const computedTotal = chemCost + manpCost + otherCost;
             const pct = (val: number) =>
               computedTotal > 0 ? Math.round((val / computedTotal) * 100) : 0;
-
-            const [breakdownOpen, setBreakdownOpen] = useState(false);
 
             const breakdownItems = [
               {
@@ -313,71 +311,6 @@ export default function Expenses() {
               </CardHeader>
               <CardContent className="pt-0">
                 <ExpenseLogTable isAdmin={isAdmin} />
-              </CardContent>
-            </Card>
-          )}
-
-          {activeTab === "manpower" && isAdmin && (
-            <Card className="rounded-md border bg-card shadow-sm">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-sm font-semibold">Manpower Expenses</CardTitle>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Monthly salaries for all technicians. Included in cost-per-plantlet via daily rate.
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Monthly Payroll</p>
-                    <p className="text-lg font-black text-emerald-500">
-                      ₹{Number(manpowerData?.total_monthly_payroll ?? 0).toLocaleString("en-IN")}
-                    </p>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="rounded-lg border border-border/40 overflow-hidden">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border/40 bg-muted/20">
-                        <th className="text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Technician</th>
-                        <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Monthly Salary</th>
-                        <th className="text-right px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Daily Rate</th>
-                        <th className="px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Notes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(manpowerData?.results ?? []).map((r) => (
-                        <tr key={r.id} className="border-b border-border/20 hover:bg-muted/10 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <UserAvatar name={r.technician_name} size="sm" />
-                              <span className="text-xs font-medium text-foreground">{r.technician_name}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <span className="text-xs font-bold text-emerald-500">
-                              ₹{Number(r.monthly_salary).toLocaleString("en-IN")}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <span className="text-xs text-muted-foreground font-mono">
-                              ₹{Number(r.daily_rate).toFixed(2)}/day
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground">{r.notes || "—"}</td>
-                        </tr>
-                      ))}
-                      {(manpowerData?.results ?? []).length === 0 && (
-                        <tr>
-                          <td colSpan={4} className="px-4 py-8 text-center text-xs text-muted-foreground/50">
-                            No salary records set. Go to Manpower page to add them.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
               </CardContent>
             </Card>
           )}

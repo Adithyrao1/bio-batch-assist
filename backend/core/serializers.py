@@ -1,9 +1,11 @@
 from rest_framework import serializers
+from django.db.models import Sum
 from .models import (
     User, Variety, Chemical,
     InitiationLog, MultiplicationLog, RootingLog, HardeningLog, TransplantationLog,
     RecentActivity, StockSolution, StockSolutionPreparation, StockSolutionChemicalUsage,
-    StockSolutionRecipeItem, ExpenseCategory, Expense, ManpowerExpense
+    StockSolutionRecipeItem, ExpenseCategory, Expense, ManpowerExpense,
+    FieldLocation, Plot, FieldManager, Farmer, SeedLot, SeedLotTransaction
 )
 
 
@@ -233,3 +235,129 @@ class ManpowerExpenseSerializer(serializers.ModelSerializer):
                 f"Edit the existing record instead."
             )
         return value
+
+
+# ============================================
+# FIELDLINK SERIALIZERS
+# ============================================
+
+class FieldLocationSerializer(serializers.ModelSerializer):
+    plot_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FieldLocation
+        fields = ['id', 'name', 'location_type', 'district', 'state', 'notes', 'plot_count', 'created_at']
+        read_only_fields = ['created_at']
+
+    def get_plot_count(self, obj):
+        return obj.plots.count()
+
+
+class PlotSerializer(serializers.ModelSerializer):
+    location_name = serializers.CharField(source='location.name', read_only=True)
+
+    class Meta:
+        model = Plot
+        fields = ['id', 'location', 'location_name', 'plot_number', 'area_acres', 'notes',
+                  'boundaries', 'centroid_lat', 'centroid_lng']
+
+
+class FieldManagerSerializer(serializers.ModelSerializer):
+    farmer_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FieldManager
+        fields = [
+            'id', 'name', 'employee_code', 'phone', 'email',
+            'region', 'is_active', 'notes', 'created_at', 'farmer_count',
+        ]
+        read_only_fields = ['created_at']
+
+    def get_farmer_count(self, obj):
+        return obj.farmers.count()
+
+
+class FarmerSerializer(serializers.ModelSerializer):
+    primary_location_name = serializers.CharField(source='primary_location.name', read_only=True, default=None)
+    field_manager_name = serializers.CharField(source='field_manager.name', read_only=True, default=None)
+    total_seeds_taken_kg = serializers.SerializerMethodField()
+    total_harvest_returned_kg = serializers.SerializerMethodField()
+    yield_ratio = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Farmer
+        fields = [
+            'id', 'name', 'grower_code', 'village', 'phone', 'aadhar_number',
+            'primary_location', 'primary_location_name',
+            'field_manager', 'field_manager_name',
+            'quality_score', 'is_active', 'notes', 'created_at',
+            'total_seeds_taken_kg', 'total_harvest_returned_kg', 'yield_ratio',
+        ]
+        read_only_fields = ['created_at']
+
+    def get_total_seeds_taken_kg(self, obj):
+        dispatches = [t for t in obj.seedlottransaction_set.all() if t.txn_type == 'dispatch']
+        return float(sum(t.quantity_kg or 0 for t in dispatches))
+
+    def get_total_harvest_returned_kg(self, obj):
+        harvests = [t for t in obj.seedlottransaction_set.all() if t.txn_type == 'harvest']
+        return float(sum(t.quantity_kg or 0 for t in harvests))
+
+    def get_yield_ratio(self, obj):
+        taken = self.get_total_seeds_taken_kg(obj)
+        returned = self.get_total_harvest_returned_kg(obj)
+        if taken > 0:
+            return round(returned / taken, 2)
+        return None
+
+
+class SeedLotSerializer(serializers.ModelSerializer):
+    parent_lot_id = serializers.CharField(source='parent_lot.lot_id', read_only=True)
+    variety_code = serializers.CharField(source='variety.code', read_only=True)
+    variety_name = serializers.CharField(source='variety.name', read_only=True)
+    location_name = serializers.CharField(source='location.name', read_only=True)
+    farmer_name = serializers.CharField(source='farmer.name', read_only=True)
+    farmer_grower_code = serializers.CharField(source='farmer.grower_code', read_only=True)
+    plot_number = serializers.CharField(source='plot.plot_number', read_only=True)
+    holder_name = serializers.ReadOnlyField()
+    child_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SeedLot
+        fields = [
+            'id', 'lot_id', 'stage', 'parent_lot', 'parent_lot_id',
+            'lab_batch_reference', 'variety', 'variety_code', 'variety_name',
+            'quantity_kg', 'season_year', 'status',
+            'location', 'location_name', 'plot', 'plot_number', 'custom_plot_id', 'custom_coordinates',
+            'farmer', 'farmer_name', 'farmer_grower_code', 'holder_name',
+            'notes', 'created_by', 'created_at', 'updated_at', 'child_count',
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'created_by']
+
+    def get_child_count(self, obj):
+        return obj.child_lots.count()
+
+    def create(self, validated_data):
+        validated_data['created_by'] = self.context['request'].user
+        return super().create(validated_data)
+
+
+class SeedLotTransactionSerializer(serializers.ModelSerializer):
+    farmer_name = serializers.CharField(source='farmer.name', read_only=True)
+    location_name = serializers.CharField(source='location.name', read_only=True)
+    recorded_by_name = serializers.CharField(source='recorded_by.get_full_name', read_only=True)
+    lot_id = serializers.CharField(source='seed_lot.lot_id', read_only=True)
+
+    class Meta:
+        model = SeedLotTransaction
+        fields = [
+            'id', 'seed_lot', 'lot_id', 'txn_type',
+            'quantity_kg', 'farmer', 'farmer_name',
+            'location', 'location_name',
+            'notes', 'recorded_by', 'recorded_by_name', 'recorded_at',
+        ]
+        read_only_fields = ['recorded_at', 'recorded_by']
+
+    def create(self, validated_data):
+        validated_data['recorded_by'] = self.context['request'].user
+        return super().create(validated_data)

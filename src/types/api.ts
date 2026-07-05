@@ -97,8 +97,8 @@ export interface RootingLogCreate { variety: number; technician: number; date: s
 export interface HardeningLog { id: number; variety: number; variety_code?: string; technician: number; technician_name?: string; date: string; seedlings_transplanted: number; seedlings_died: number; }
 export interface HardeningLogCreate { variety: number; technician: number; date: string; seedlings_transplanted: number; seedlings_died: number; }
 
-export interface TransplantationLog { id: number; variety: number; variety_code?: string; technician: number; technician_name?: string; date: string; seedlings_transplanted: number; seedlings_died: number; }
-export interface TransplantationLogCreate { variety: number; technician: number; date: string; seedlings_transplanted: number; seedlings_died: number; }
+export interface TransplantationLog { id: number; variety: number; variety_code?: string; technician: number; technician_name?: string; date: string; seedlings_transplanted: number; seedlings_died: number; field_lot_id?: string; farmer?: number; location?: number; }
+export interface TransplantationLogCreate { variety: number; technician: number; date: string; seedlings_transplanted: number; seedlings_died: number; field_lot_id?: string; farmer?: number; location?: number; }
 
 
 // ============================================

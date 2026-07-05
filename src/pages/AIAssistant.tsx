@@ -4,8 +4,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Bot, Send, Loader2, ChevronLeft,
   Sparkles, CornerDownLeft, User, RefreshCw,
-  Mic, MicOff, Volume2, VolumeX, ChevronDown,
-  Mail, PieChart, Database, Users
+  Mic, MicOff, Volume2, VolumeX,
+  Beaker, Tractor, GitMerge
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -22,48 +22,74 @@ interface Message {
   content: string;
 }
 
-const STARTER_GROUPS = [
+// ─── 3-column starter prompt data ────────────────────────────────────────────
+const STARTER_COLUMNS = [
   {
-    id: "reports",
-    title: "Reports & Emails",
-    icon: Mail,
+    id: "labnest",
+    module: "LabNest",
+    tagline: "Tissue Culture LIMS",
+    icon: Beaker,
+    accent: "origin",
+    headerGrad: "from-origin-600 to-origin-600",
+    borderColor: "border-origin-500/20",
+    bgColor: "bg-origin-500/5",
+    iconBg: "bg-origin-500/10",
+    iconColor: "text-origin-500",
+    hoverBg: "hover:bg-origin-500/8",
+    sparkColor: "text-origin-400",
     prompts: [
-      "Send the progress report from 01-05-2026 to 27-05-2026 to my_manager@dcmhsriram.com",
-      "Send the expenses report from 01-05-2026 to 27-05-2026 to my_manager@dcmhsriram.com",
-      "Send me the weekly lab performance report as a PDF",
-    ]
-  },
-  {
-    id: "charts",
-    title: "Charts & Visualizations",
-    icon: PieChart,
-    prompts: [
-      "Show me a pie chart of contamination events by variety",
-      "Give me a summary of our expenses over the last 30 days",
-    ]
-  },
-  {
-    id: "queries",
-    title: "Lab Queries & SOPs",
-    icon: Database,
-    prompts: [
-      "What is the SOP for handling a sodium hypochlorite spill?",
-      "Which crop variety has the highest mortality rate?",
-      "Pichle mahine me konsi variety me sabse zyada production hua?",
-    ]
-  },
-  {
-    id: "manpower",
-    title: "Expenses, Costing & Payroll",
-    icon: Users,
-    prompts: [
+      "Which variety has the highest contamination rate this month?",
       "What is our current cost per plantlet?",
-      "Give me a breakdown of our total operational cost — chemicals, manpower, and other expenses",
-      "How much did we spend on manpower from 2026-01-01 to 2026-06-15?",
-      "Show me the total monthly payroll for all technicians",
-      "What is the salary of Ravi?",
-      "Which chemicals contributed the most to our costs this month?",
-    ]
+      "Show me a pie chart of contamination events by variety",
+      "Pichle mahine me konsi variety me sabse zyada production hua?",
+      "Give me a breakdown of chemicals vs manpower vs other expenses",
+      "What is the SOP for handling a sodium hypochlorite spill?",
+      "Send the progress report from 01-05-2026 to 27-05-2026 to my_manager@dcmshriram.com",
+    ],
+  },
+  {
+    id: "fieldlink",
+    module: "FieldLink",
+    tagline: "Seed Multiplication & Field Ops",
+    icon: Tractor,
+    accent: "emerald",
+    headerGrad: "from-emerald-600 to-teal-600",
+    borderColor: "border-emerald-500/20",
+    bgColor: "bg-emerald-500/5",
+    iconBg: "bg-emerald-500/10",
+    iconColor: "text-emerald-500",
+    hoverBg: "hover:bg-emerald-500/8",
+    sparkColor: "text-emerald-400",
+    prompts: [
+      "How many seed lots are currently active across all locations?",
+      "Which farmer received the most seed dispatch this season?",
+      "What is the total acreage across all field locations?",
+      "Give me the details for plot PLOT-001",
+      "List all plots at Hariawan with their current seed stage",
+      "Which location has the highest seed yield this year?",
+    ],
+  },
+  {
+    id: "crossmodule",
+    module: "Cross-Module",
+    tagline: "End-to-End Pipeline Intelligence",
+    icon: GitMerge,
+    accent: "amber",
+    headerGrad: "from-amber-500 to-orange-500",
+    borderColor: "border-amber-500/20",
+    bgColor: "bg-amber-500/5",
+    iconBg: "bg-amber-500/10",
+    iconColor: "text-amber-500",
+    hoverBg: "hover:bg-amber-500/8",
+    sparkColor: "text-amber-400",
+    prompts: [
+      "Trace the full lifecycle of variety Co-0238 — from lab to field",
+      "How many plantlets produced in LabNest were dispatched to Loni this season?",
+      "What is our overall cost from tissue culture production to final dispatch?",
+      "Give me a pipeline summary — production, inventory, and field distribution",
+      "Which varieties are both in active lab production and field multiplication?",
+      "Send a complete operations report for May 2026 to my_manager@dcmshriram.com",
+    ],
   },
 ];
 
@@ -76,14 +102,14 @@ function TypingIndicator() {
       exit={{ opacity: 0, y: 8 }}
       className="flex items-end gap-3"
     >
-      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/40 shadow-sm">
-        <Bot className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-origin-100 dark:bg-origin-900/40 shadow-sm">
+        <Bot className="h-4 w-4 text-origin-600 dark:text-origin-400" />
       </div>
       <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-sm bg-card border border-border/60 px-4 py-3 shadow-sm">
         {[0, 1, 2].map((i) => (
           <motion.span
             key={i}
-            className="block h-1.5 w-1.5 rounded-full bg-violet-400"
+            className="block h-1.5 w-1.5 rounded-full bg-origin-400"
             animate={{ y: [0, -5, 0] }}
             transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
           />
@@ -105,10 +131,10 @@ function MessageBubble({ msg, userName }: { msg: Message; userName: string }) {
   if (!isUser && contentStr.includes("===CHART_BEGIN===") && contentStr.includes("===CHART_END===")) {
     const beginIdx = contentStr.indexOf("===CHART_BEGIN===");
     const endIdx = contentStr.indexOf("===CHART_END===") + "===CHART_END===".length;
-    
+
     textBeforeChart = contentStr.substring(0, beginIdx).trim();
     textAfterChart = contentStr.substring(endIdx).trim();
-    
+
     const chartPayload = contentStr.substring(beginIdx + "===CHART_BEGIN===".length, contentStr.indexOf("===CHART_END===")).trim();
     const parts = chartPayload.split("|");
     if (parts.length >= 3) {
@@ -138,7 +164,7 @@ function MessageBubble({ msg, userName }: { msg: Message; userName: string }) {
               <code>{children}</code>
             </pre>
           ) : (
-            <code className="bg-muted text-violet-600 dark:text-violet-400 rounded px-1 py-0.5 text-xs font-mono">{children}</code>
+            <code className="bg-muted text-origin-600 dark:text-origin-400 rounded px-1 py-0.5 text-xs font-mono">{children}</code>
           );
         },
         table: ({ children }) => (
@@ -169,12 +195,12 @@ function MessageBubble({ msg, userName }: { msg: Message; userName: string }) {
     >
       {/* Avatar */}
       {isUser ? (
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 shadow-sm">
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-origin-500 to-origin-600 shadow-sm">
           <User className="h-4 w-4 text-white" />
         </div>
       ) : (
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/40 shadow-sm">
-          <Bot className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-origin-100 dark:bg-origin-900/40 shadow-sm">
+          <Bot className="h-4 w-4 text-origin-600 dark:text-origin-400" />
         </div>
       )}
 
@@ -183,7 +209,7 @@ function MessageBubble({ msg, userName }: { msg: Message; userName: string }) {
         className={cn(
           "max-w-[72%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm",
           isUser
-            ? "bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-sm"
+            ? "bg-gradient-to-br from-origin-600 to-origin-600 text-white rounded-br-sm"
             : "bg-card border border-border/60 text-foreground rounded-bl-sm"
         )}
       >
@@ -210,11 +236,10 @@ export default function AIAssistant() {
   const INITIAL_MESSAGE: Message = {
     id: 0,
     role: "assistant",
-    content: "Hi! I'm LabNest AI 🔬\n\nI have access to your entire lab database. Ask me anything — contamination trends, chemical inventory, batch stats, variety performance, and more.",
+    content: "Hi! I'm **Origin.AI** ✨\n\nYour end-to-end intelligent assistant for **LabNest** and **FieldLink**. I have live access to your entire database — production stats, contamination trends, expenses, seed traceability, manpower, and more.\n\nWhat would you like to know?",
   };
 
   const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
-  const [openGroup, setOpenGroup] = useState<string | null>("reports");
 
   const handleResetChat = () => {
     setMessages([INITIAL_MESSAGE]);
@@ -283,7 +308,7 @@ export default function AIAssistant() {
         ...prev,
         { id: msgIdRef.current++, role: "assistant", content: reply },
       ]);
-      
+
       if (readAloud) {
         speak(reply);
       }
@@ -313,19 +338,19 @@ export default function AIAssistant() {
   const userName = user ? `${user.name}` : "You";
 
   return (
-    <div className="flex flex-col h-full min-h-[calc(100vh-4rem)] relative overflow-hidden bg-background">
+    <div className="flex flex-col h-[100dvh] relative overflow-hidden bg-background">
 
       {/* Background Glassmorphism Orbs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
         <motion.div
           animate={{ x: [0, 40, 0], y: [0, -30, 0], scale: [1, 1.1, 1] }}
           transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full blur-[100px] bg-violet-500/10 dark:bg-violet-600/15"
+          className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full blur-[100px] bg-origin-500/10 dark:bg-origin-600/15"
         />
         <motion.div
           animate={{ x: [0, -30, 0], y: [0, 40, 0], scale: [1, 1.2, 1] }}
           transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full blur-[120px] bg-indigo-500/10 dark:bg-indigo-600/15"
+          className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full blur-[120px] bg-origin-500/10 dark:bg-origin-600/15"
         />
         <motion.div
           animate={{ x: [0, 50, 0], y: [0, 50, 0], opacity: [0.5, 0.8, 0.5] }}
@@ -344,15 +369,15 @@ export default function AIAssistant() {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="relative z-10 overflow-hidden border-b border-border/50 bg-gradient-to-r from-violet-700 via-indigo-600 to-violet-700 px-6 py-4 flex-shrink-0"
+        className="relative z-10 overflow-hidden border-b border-border/50 bg-gradient-to-r from-origin-700 via-origin-600 to-origin-700 px-6 py-4 flex-shrink-0"
       >
         {/* Decorative orbs */}
         <div className="absolute -top-8 -right-8 h-32 w-32 rounded-full bg-white/10 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-6 left-16 h-24 w-24 rounded-full bg-indigo-300/10 blur-2xl pointer-events-none" />
+        <div className="absolute -bottom-6 left-16 h-24 w-24 rounded-full bg-origin-300/10 blur-2xl pointer-events-none" />
 
         <div className="relative flex items-center gap-4">
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate("/launchpad")}
             className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/15 hover:bg-white/25 text-white transition-colors"
             aria-label="Back to dashboard"
           >
@@ -364,8 +389,8 @@ export default function AIAssistant() {
               <img src="/chatbot.png" alt="LabNest AI" className="h-6 w-6 object-contain drop-shadow-md" />
             </div>
             <div>
-              <p className="text-sm font-bold text-white leading-none">LabNest AI</p>
-              <p className="text-[11px] text-white/65 mt-0.5">Ask anything about your lab data</p>
+              <p className="text-sm font-bold text-white leading-none">Origin<span className="text-origin-200">.AI</span></p>
+              <p className="text-[11px] text-white/65 mt-0.5">Your end-to-end lab intelligence assistant</p>
             </div>
           </div>
 
@@ -389,12 +414,12 @@ export default function AIAssistant() {
               <RefreshCw className="h-3.5 w-3.5 text-white" />
               <span className="text-[11px] font-medium text-white hidden sm:inline">New Chat</span>
             </button>
-            <div className="flex items-center gap-2 rounded-full bg-violet-500/10 border border-violet-500/20 px-3 py-1.5 shadow-[0_0_15px_rgba(124,58,237,0.1)]">
+            <div className="flex items-center gap-2 rounded-full bg-origin-500/10 border border-origin-500/20 px-3 py-1.5 shadow-[0_0_15px_rgba(124,58,237,0.1)]">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span className="text-[11px] font-bold text-violet-100 hidden sm:inline tracking-wide">DeepSeek</span>
+              <span className="text-[11px] font-bold text-origin-100 hidden sm:inline tracking-wide">DeepSeek R1</span>
             </div>
           </div>
         </div>
@@ -404,7 +429,7 @@ export default function AIAssistant() {
       <div className="relative z-10 flex-1 overflow-y-auto px-4 py-6 space-y-4">
         <div className="max-w-3xl mx-auto space-y-4">
           <AnimatePresence>
-            {messages.map((msg, idx) => 
+            {messages.map((msg, idx) =>
               (showStarters && idx === 0) ? null : (
                 <MessageBubble key={msg.id} msg={msg} userName={userName} />
               )
@@ -433,10 +458,10 @@ export default function AIAssistant() {
                     transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                     className="relative flex items-center justify-center h-24 w-24 mb-4"
                   >
-                    <div className="absolute inset-0 bg-violet-500/20 blur-xl rounded-full" />
-                    <div className="absolute inset-2 bg-indigo-400/30 blur-md rounded-full" />
-                    <motion.div 
-                      className="relative h-20 w-20 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-[2rem] shadow-xl flex items-center justify-center border-4 border-background"
+                    <div className="absolute inset-0 bg-origin-500/20 blur-xl rounded-full" />
+                    <div className="absolute inset-2 bg-origin-400/30 blur-md rounded-full" />
+                    <motion.div
+                      className="relative h-20 w-20 bg-gradient-to-br from-origin-600 to-origin-600 rounded-[2rem] shadow-xl flex items-center justify-center border-4 border-background"
                       whileHover={{ scale: 1.05 }}
                     >
                       <Bot className="h-10 w-10 text-white" />
@@ -451,67 +476,63 @@ export default function AIAssistant() {
                       </motion.div>
                     </motion.div>
                   </motion.div>
-                  
+
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5, duration: 0.5 }}
                     className="text-center space-y-1"
                   >
-                    <h2 className="text-xl font-bold bg-gradient-to-r from-violet-600 to-indigo-500 bg-clip-text text-transparent">
+                    <h2 className="text-xl font-bold bg-gradient-to-r from-origin-600 to-origin-500 bg-clip-text text-transparent">
                       Hi, {userName.split(" ")[0]}!
                     </h2>
                     <p className="text-sm text-muted-foreground max-w-[280px]">
-                      I'm ready to analyze your lab data. What would you like to know?
+                      I'm Origin.AI — your cross-module intelligence layer. What would you like to explore?
                     </p>
                   </motion.div>
                 </div>
 
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-3 text-center">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-4 text-center">
                   Try asking…
                 </p>
-                <div className="flex flex-col gap-3">
-                  {STARTER_GROUPS.map((group) => {
-                    const isOpen = openGroup === group.id;
-                    const Icon = group.icon;
+
+                {/* 3-column module layout */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {STARTER_COLUMNS.map((col, colIdx) => {
+                    const Icon = col.icon;
                     return (
-                      <div key={group.id} className="rounded-xl border border-border/60 bg-card/40 overflow-hidden transition-all duration-200">
-                        <button
-                          onClick={() => setOpenGroup(isOpen ? null : group.id)}
-                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-card/80 transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-lg bg-violet-500/10 flex items-center justify-center text-violet-500">
-                              <Icon className="h-4 w-4" />
-                            </div>
-                            <span className="font-semibold text-sm text-foreground/90">{group.title}</span>
+                      <motion.div
+                        key={col.id}
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.15 * colIdx, duration: 0.35 }}
+                        className={`rounded-2xl border ${col.borderColor} ${col.bgColor} overflow-hidden flex flex-col`}
+                      >
+                        {/* Column header */}
+                        <div className={`flex items-center gap-3 px-4 py-3 bg-gradient-to-r ${col.headerGrad}`}>
+                          <div className="h-7 w-7 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
+                            <Icon className="h-4 w-4 text-white" />
                           </div>
-                          <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", isOpen && "rotate-180")} />
-                        </button>
-                        <AnimatePresence>
-                          {isOpen && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              className="overflow-hidden"
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-white leading-none">{col.module}</p>
+                            <p className="text-[10px] text-white/70 leading-tight mt-0.5 truncate">{col.tagline}</p>
+                          </div>
+                        </div>
+
+                        {/* Prompts */}
+                        <div className="flex flex-col gap-0.5 p-2 flex-1">
+                          {col.prompts.map((q, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => sendMessage(q)}
+                              className={`flex items-start gap-2 rounded-xl px-3 py-2 text-left text-xs text-foreground/75 hover:text-foreground ${col.hoverBg} hover:bg-opacity-100 transition-all group`}
                             >
-                              <div className="p-2 pt-0 grid grid-cols-1 gap-1 border-t border-border/40 bg-card/20">
-                                {group.prompts.map((q, idx) => (
-                                  <button
-                                    key={idx}
-                                    onClick={() => sendMessage(q)}
-                                    className="flex items-start gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-foreground/80 hover:text-foreground hover:bg-violet-500/5 transition-all group"
-                                  >
-                                    <Sparkles className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-violet-400 group-hover:text-violet-500 transition-colors" />
-                                    <span className="leading-snug">{q}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
+                              <Sparkles className={`h-3 w-3 mt-0.5 flex-shrink-0 ${col.sparkColor} opacity-60 group-hover:opacity-100 transition-opacity`} />
+                              <span className="leading-snug">{q}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
                     );
                   })}
                 </div>
@@ -528,14 +549,14 @@ export default function AIAssistant() {
         <div className="max-w-3xl mx-auto">
           <div className={cn(
             "flex items-end gap-3 rounded-2xl border bg-card px-4 py-3 transition-all duration-300 relative overflow-hidden group",
-            loading ? "border-border/40" : "border-border/60 focus-within:border-violet-500/80 focus-within:shadow-[0_0_20px_rgba(124,58,237,0.15)] focus-within:bg-card/90"
+            loading ? "border-border/40" : "border-border/60 focus-within:border-origin-500/80 focus-within:shadow-[0_0_20px_rgba(124,58,237,0.15)] focus-within:bg-card/90"
           )}>
             <textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={isListening ? "Listening..." : "Ask a question about your lab data…"}
+              placeholder={isListening ? "Listening..." : "Ask a question about your data…"}
               disabled={loading || isListening}
               rows={1}
               className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none disabled:opacity-50 leading-relaxed"
@@ -550,9 +571,9 @@ export default function AIAssistant() {
                 whileTap={{ scale: 0.95 }}
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-xl transition-all",
-                  isListening 
-                    ? "bg-red-500 text-white shadow-md shadow-red-500/30 animate-pulse" 
-                    : "bg-muted text-muted-foreground hover:bg-violet-100 hover:text-violet-600 dark:hover:bg-violet-900/40 dark:hover:text-violet-400"
+                  isListening
+                    ? "bg-red-500 text-white shadow-md shadow-red-500/30 animate-pulse"
+                    : "bg-muted text-muted-foreground hover:bg-origin-100 hover:text-origin-600 dark:hover:bg-origin-900/40 dark:hover:text-origin-400"
                 )}
                 title={isListening ? "Stop listening" : "Start Voice Input"}
               >
@@ -569,7 +590,7 @@ export default function AIAssistant() {
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-xl text-white transition-all",
                   input.trim() && !loading
-                    ? "bg-gradient-to-br from-violet-500 to-indigo-600 hover:shadow-md hover:shadow-violet-500/30"
+                    ? "bg-gradient-to-br from-origin-500 to-origin-600 hover:shadow-md hover:shadow-origin-500/30"
                     : "bg-muted text-muted-foreground cursor-not-allowed"
                 )}
               >
@@ -583,7 +604,7 @@ export default function AIAssistant() {
           </div>
 
           <p className="text-center text-[10px] text-muted-foreground/50 mt-2">
-            Answers are AI-generated from your database. Always verify critical decisions.
+            Origin.AI responses are generated from your live database. Always verify critical decisions.
           </p>
         </div>
       </div>

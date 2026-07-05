@@ -20,15 +20,14 @@ import {
 } from "recharts";
 import { useDashboard, useRecentActivities, useCreateRecentActivity } from "@/hooks/useApiQueries";
 import { useToast } from "@/hooks/use-toast";
-import ChatWidget from "@/components/ChatWidget";
 
-// Professional muted palette — 2-3 colors max, data-focused
-const CHART_BLUE   = "#2563eb";
-const CHART_TEAL   = "#0d9488";
-const CHART_AMBER  = "#d97706";
-const CHART_RED    = "#dc2626";
-const CHART_SLATE  = "#64748b";
-const CHART_COLORS = [CHART_BLUE, CHART_TEAL, CHART_AMBER, CHART_RED, CHART_SLATE];
+// Chart colors routed through CSS variables — theme-safe in both light and dark
+const CHART_BLUE   = "hsl(var(--chart-1))";
+const CHART_TEAL   = "hsl(var(--chart-2))";
+const CHART_AMBER  = "hsl(var(--chart-3))";
+const CHART_RED    = "hsl(var(--chart-4))";
+const CHART_PURPLE = "hsl(var(--chart-5))";
+const CHART_COLORS = [CHART_BLUE, CHART_TEAL, CHART_AMBER, CHART_RED, CHART_PURPLE];
 
 // ── Stat card — flat, bordered, status-color left strip ──────────────────────
 function StatCard({
@@ -42,20 +41,20 @@ function StatCard({
   const strip = {
     default: "bg-blue-600",
     success: "bg-teal-600",
-    warn:    "bg-amber-500",
-    danger:  "bg-red-500",
+    warn: "bg-amber-500",
+    danger: "bg-red-500",
   }[variant];
   const valueColor = {
     default: "text-foreground",
     success: "text-teal-700 dark:text-teal-400",
-    warn:    "text-amber-700 dark:text-amber-400",
-    danger:  "text-red-700 dark:text-red-400",
+    warn: "text-amber-700 dark:text-amber-400",
+    danger: "text-red-700 dark:text-red-400",
   }[variant];
   const iconColor = {
     default: "text-blue-600 dark:text-blue-400",
     success: "text-teal-600 dark:text-teal-400",
-    warn:    "text-amber-600 dark:text-amber-400",
-    danger:  "text-red-600 dark:text-red-400",
+    warn: "text-amber-600 dark:text-amber-400",
+    danger: "text-red-600 dark:text-red-400",
   }[variant];
 
   return (
@@ -85,28 +84,30 @@ function StatCard({
 
 // ── Chart panel — flat card, section header ───────────────────────────────────
 function ChartPanel({
-  title, icon: Icon, accentColor = "text-blue-600", children, className,
+  title, icon: Icon, iconClass = "text-primary", children, className,
 }: {
-  title: string; icon: React.ElementType; accentColor?: string;
+  title: string; icon: React.ElementType; iconClass?: string;
   children: React.ReactNode; className?: string;
 }) {
   return (
-    <div className={cn("bg-card border border-border rounded-sm shadow-sm overflow-hidden flex flex-col", className)}>
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
-        <Icon className={cn("h-4 w-4 shrink-0", accentColor)} />
-        <span className="text-sm font-semibold text-foreground">{title}</span>
+    <div className={cn("bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col", className)}>
+      <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border bg-muted/30">
+        <div className={cn("p-1.5 rounded-md bg-card border border-border/60", iconClass)}>
+          <Icon className="h-3.5 w-3.5 shrink-0" />
+        </div>
+        <span className="text-sm font-semibold text-foreground tracking-tight">{title}</span>
       </div>
-      <div className="p-4 flex-1 flex flex-col">{children}</div>
+      <div className="p-5 flex-1 flex flex-col">{children}</div>
     </div>
   );
 }
 
-// ── Clean tooltip ─────────────────────────────────────────────────────────────
+// ── Tooltip — semantic tokens only ──────────────────────────────────────────
 const DataTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="border border-border bg-card shadow-md rounded-sm px-3 py-2 text-xs">
-      {label && <p className="font-semibold text-foreground mb-1 border-b border-border pb-1">{label}</p>}
+    <div className="border border-border bg-popover text-popover-foreground shadow-md rounded-lg px-3 py-2 text-xs">
+      {label && <p className="font-semibold mb-1 border-b border-border pb-1">{label}</p>}
       {payload.map((entry: any, i: number) => (
         <p key={i} className="text-muted-foreground">
           {entry.name ?? entry.dataKey}:{" "}
@@ -120,7 +121,7 @@ const DataTooltip = ({ active, payload, label }: any) => {
 // ── Treemap cell ──────────────────────────────────────────────────────────────
 const TreemapCell = (props: any) => {
   const { x, y, width, height, index, name } = props;
-  const fills = [CHART_RED, CHART_AMBER, CHART_SLATE, "#b91c1c", "#92400e"];
+  const fills = [CHART_RED, CHART_AMBER, CHART_PURPLE, CHART_TEAL, CHART_BLUE];
   const fill = fills[index % fills.length];
   return (
     <g>
@@ -173,7 +174,7 @@ export default function Dashboard() {
   const pipelineData = production_pipeline.map((p) => ({
     name: p.stage,
     value: p.count,
-    fill: CHART_COLORS[["Initiation","Multiplication","Rooting","Hardening","Transplantation"].indexOf(p.stage) % CHART_COLORS.length],
+    fill: CHART_COLORS[["Initiation", "Multiplication", "Rooting", "Hardening", "Transplantation"].indexOf(p.stage) % CHART_COLORS.length],
   }));
 
   return (
@@ -257,7 +258,7 @@ export default function Dashboard() {
 
         {/* ── Row 1: Production analytics + Activity feed ─────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <ChartPanel title="Production Analytics" icon={BarChart2} accentColor="text-blue-600" className="lg:col-span-2 h-[400px]">
+          <ChartPanel title="Production Analytics" icon={BarChart2} iconClass="text-primary" className="lg:col-span-2 h-[400px]">
             <Tabs defaultValue="pipeline" className="w-full h-full flex flex-col">
               <div className="flex justify-end mb-3">
                 <TabsList className="h-7 text-xs">
@@ -279,10 +280,10 @@ export default function Dashboard() {
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={production_trend}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                     <Tooltip content={<DataTooltip />} />
-                    <Bar dataKey="total" name="Plantlets" fill={CHART_BLUE} radius={[2, 2, 0, 0]} maxBarSize={36} />
+                    <Bar dataKey="total" name="Plantlets" fill={CHART_BLUE} radius={[3, 3, 0, 0]} maxBarSize={36} />
                   </BarChart>
                 </ResponsiveContainer>
               </TabsContent>
@@ -290,20 +291,22 @@ export default function Dashboard() {
           </ChartPanel>
 
           {/* Activity feed */}
-          <div className="bg-card border border-border rounded-sm shadow-sm flex flex-col h-[400px]">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
-              <Activity className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-semibold">Lab Activity Feed</span>
+          <div className="bg-card border border-border rounded-xl shadow-sm flex flex-col h-[400px]">
+            <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border bg-muted/30">
+              <div className="p-1.5 rounded-md bg-card border border-border/60 text-primary">
+                <Activity className="h-3.5 w-3.5" />
+              </div>
+              <span className="text-sm font-semibold text-foreground tracking-tight">Lab Activity Feed</span>
             </div>
-            <div className="px-3 py-3 border-b border-border">
+            <div className="px-4 py-3 border-b border-border">
               <form onSubmit={handlePost} className="flex gap-2">
                 <Input
                   placeholder="Post an update..."
                   value={newActivity}
                   onChange={(e) => setNewActivity(e.target.value)}
-                  className="flex-1 h-8 text-xs rounded-sm"
+                  className="flex-1 h-8 text-xs rounded-lg"
                 />
-                <Button type="submit" size="sm" className="h-8 px-3 rounded-sm shrink-0" disabled={createActivity.isPending}>
+                <Button type="submit" size="sm" className="h-8 px-3 rounded-lg shrink-0" disabled={createActivity.isPending}>
                   {createActivity.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                 </Button>
               </form>
@@ -311,16 +314,16 @@ export default function Dashboard() {
             <div className="flex-1 overflow-y-auto no-scrollbar">
               {recentActivityData?.results?.length ? (
                 recentActivityData.results.map((item) => (
-                  <div key={item.id} className="flex items-start gap-3 px-4 py-3 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors">
-                    <div className="h-7 w-7 rounded-sm bg-blue-600 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                  <div key={item.id} className="flex items-start gap-3 px-5 py-3.5 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors duration-100">
+                    <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground shrink-0">
                       {(item.user_name ?? "?")[0].toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-foreground leading-snug">{item.content}</p>
                       <div className="flex items-center gap-1.5 mt-1">
-                        <span className="text-[10px] font-medium text-muted-foreground">{item.user_name}</span>
+                        <span className="text-[10px] font-semibold text-primary">{item.user_name}</span>
                         <span className="text-[10px] text-muted-foreground/40">·</span>
-                        <span className="text-[10px] text-muted-foreground/60">{formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}</span>
+                        <span className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}</span>
                       </div>
                     </div>
                   </div>
@@ -334,9 +337,9 @@ export default function Dashboard() {
 
         {/* ── Row 2: Contamination + Variety ──────────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <ChartPanel title="Contamination Tracking" icon={Bug} accentColor="text-red-600" className="lg:col-span-2 h-[340px]">
+          <ChartPanel title="Contamination Tracking" icon={Bug} iconClass="text-destructive" className="lg:col-span-2 h-[340px]">
             <Tabs defaultValue="stage" className="w-full h-full flex flex-col">
-              <div className="flex justify-end mb-3">
+              <div className="flex justify-end mb-4">
                 <TabsList className="h-7">
                   <TabsTrigger value="stage" className="text-xs px-3">By Stage</TabsTrigger>
                   <TabsTrigger value="timeline" className="text-xs px-3">Timeline</TabsTrigger>
@@ -353,8 +356,8 @@ export default function Dashboard() {
                 <ResponsiveContainer width="100%" height={230}>
                   <LineChart data={contamination_trend}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                     <Tooltip content={<DataTooltip />} />
                     <Line type="monotone" dataKey="cases" name="Cases" stroke={CHART_RED} strokeWidth={2} dot={{ r: 3, fill: CHART_RED }} />
                   </LineChart>
@@ -363,9 +366,9 @@ export default function Dashboard() {
             </Tabs>
           </ChartPanel>
 
-          <ChartPanel title="Variety Analysis" icon={PieChartIcon} accentColor="text-teal-600" className="h-[340px]">
+          <ChartPanel title="Variety Analysis" icon={PieChartIcon} iconClass="text-[hsl(var(--chart-2))]" className="h-[340px]">
             <Tabs defaultValue="output" className="w-full h-full flex flex-col">
-              <div className="flex justify-end mb-3">
+              <div className="flex justify-end mb-4">
                 <TabsList className="h-7">
                   <TabsTrigger value="output" className="text-xs px-3">Output</TabsTrigger>
                   <TabsTrigger value="survival" className="text-xs px-3">Survival</TabsTrigger>
@@ -385,10 +388,10 @@ export default function Dashboard() {
                 <ResponsiveContainer width="100%" height={230}>
                   <BarChart data={success_rate_per_variety} layout="vertical" margin={{ left: 12 }}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                    <XAxis type="number" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 100]} />
-                    <YAxis dataKey="variety" type="category" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={72} />
+                    <XAxis type="number" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                    <YAxis dataKey="variety" type="category" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={72} />
                     <Tooltip content={<DataTooltip />} />
-                    <Bar dataKey="successRate" name="Success %" fill={CHART_TEAL} radius={[0, 2, 2, 0]} barSize={20} />
+                    <Bar dataKey="successRate" name="Success %" fill={CHART_TEAL} radius={[0, 3, 3, 0]} barSize={20} />
                   </BarChart>
                 </ResponsiveContainer>
               </TabsContent>
@@ -398,7 +401,6 @@ export default function Dashboard() {
 
       </div>
 
-      <ChatWidget />
     </>
   );
 }

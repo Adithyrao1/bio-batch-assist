@@ -1,76 +1,43 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sprout,
-  FlaskConical,
-  BarChart3,
-  Shield,
-  Users,
+  Tractor,
   ArrowRight,
-  CheckCircle2,
-  Bot,
-  Sparkles,
   Database,
-  MessageSquareText,
+  Activity,
+  LineChart,
+  GitBranch,
   X,
   Loader2,
-  PieChart,
-  FileText,
-  Mail
+  Search,
+  BarChart3,
+  FlaskConical,
+  Mail,
+  ShieldCheck,
+  Zap,
+  Map,
+  Users,
+  LocateFixed,
+  MapPin,
+  Bot,
+  User,
+  CheckCircle2,
+  Send
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useTheme } from "next-themes";
 import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "@/lib/authConfig";
-
-const features = [
-  {
-    icon: Bot,
-    title: "Autonomous AI Agent",
-    description: "Powered by LangChain and Llama 3.1 to reason, query, and take action autonomously.",
-    highlight: true,
-  },
-  {
-    icon: PieChart,
-    title: "Dynamic Data Visualization",
-    description: "Instantly generate premium, interactive graphs and charts from your lab data via natural language.",
-  },
-  {
-    icon: FileText,
-    title: "Knowledge Base Retrieval",
-    description: "RAG pipeline connected to Azure Blob Storage to query massive SOP and MSDS documents instantly.",
-  },
-  {
-    icon: Mail,
-    title: "Automated Email Agent",
-    description: "Ask the AI to automatically compile and send performance or inventory alerts directly to your inbox.",
-  },
-  {
-    icon: Database,
-    title: "Live MySQL Connection",
-    description: "Instantly access the latest production metrics, inventory, and contamination records.",
-  },
-  {
-    icon: Shield,
-    title: "Enterprise SSO Security",
-    description: "Secure access through Microsoft Entra ID (OIDC) integrated with your corporate directory.",
-  },
-];
-
-const benefits = [
-  "Interact with data using natural language",
-  "Streamline tissue culture workflows",
-  "Reduce contamination losses with smart insights",
-  "Track chemical inventory & expiry effortlessly",
-  "Monitor multiple lab areas in real-time",
-];
+import { Hero3D } from "@/components/ui/Hero3D";
 
 export default function Landing() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const { instance } = useMsal();
+  const { resolvedTheme } = useTheme();
 
   const handleLogin = async () => {
     setIsLoggingIn(true);
@@ -82,306 +49,232 @@ export default function Landing() {
     }
   };
 
-  // Prevent scrolling when modal is open
   useEffect(() => {
-    if (showLoginModal) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
+    document.body.style.overflow = showLoginModal ? "hidden" : "unset";
+    return () => { document.body.style.overflow = "unset"; };
   }, [showLoginModal]);
 
   return (
-    <div className="min-h-screen relative bg-background text-foreground overflow-hidden">
-      {/* Cinematic Video Background */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="object-cover w-full h-full opacity-90 transition-opacity duration-1000"
-        >
-          <source src="/landing-bg.mp4" type="video/mp4" />
-        </video>
-        {/* Adaptive Glassmorphism Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/60 to-background backdrop-blur-[2px] dark:from-background/30 dark:via-background/60 dark:to-background/95 dark:backdrop-blur-[2px]" />
+    <div className="min-h-screen bg-background text-foreground selection:bg-indigo-500/30 overflow-hidden font-sans transition-colors duration-300">
+
+      {/* Background Orbs */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-violet-500/10 dark:bg-violet-600/15 rounded-full blur-[120px] mix-blend-screen" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-emerald-500/10 dark:bg-emerald-600/15 rounded-full blur-[150px] mix-blend-screen" />
       </div>
 
-      <div className="relative z-10">
-        {/* Header */}
-        <header className="border-b border-white/10 dark:border-white/5 bg-background/30 dark:bg-background/20 backdrop-blur-xl sticky top-0 z-50 shadow-sm">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-tr from-emerald-400 to-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-                <Bot className="h-5 w-5 text-primary-foreground relative z-10" />
-              </div>
-              <span className="font-bold text-lg hidden sm:inline">DCM LabNest</span>
-            </Link>
-            <div className="flex items-center gap-3">
-              <ThemeToggle />
-              <Button onClick={() => setShowLoginModal(true)} className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 border-0 text-white shadow-lg shadow-emerald-500/20">Sign In / SSO</Button>
-            </div>
+      {/* Navbar */}
+      <header className="relative z-50 border-b border-border/40 bg-background/60 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <BrandLogo size="h-10 w-10" rounded="rounded-2xl" />
+            <span className="text-xl font-bold tracking-tight">Origin<span className="text-indigo-500">.ai</span></span>
           </div>
-        </header>
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
+            <button
+              onClick={() => setShowLoginModal(true)}
+              className="hidden sm:block text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors px-4 py-2"
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => setShowLoginModal(true)}
+              className="bg-foreground text-background hover:bg-foreground/90 px-5 py-2.5 rounded-full text-sm font-bold transition-all"
+            >
+              Get Started
+            </button>
+          </div>
+        </div>
+      </header>
 
-        {/* Hero Section */}
-        <section className="pt-24 pb-16 px-4">
-          <div className="container mx-auto text-center max-w-5xl">
-            <motion.div
+      <main className="relative z-10">
+        <Hero3D />
+
+        {/* HERO SECTION */}
+        <section className="relative min-h-[92vh] flex flex-col items-center justify-center px-6 text-center overflow-hidden">
+
+          {/* ── Video Background ── */}
+          <div className="absolute inset-0 z-0 overflow-hidden">
+            <video
+              autoPlay
+              muted
+              loop
+              playsInline
+              className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ${resolvedTheme === "dark" ? "invert brightness-[0.35] saturate-50" : "opacity-40"
+                }`}
+            >
+              <source src="/hero-bg.mp4" type="video/mp4" />
+            </video>
+            {/* Overlay: lightens on light mode, darkens on dark mode */}
+            <div className={`absolute inset-0 transition-all duration-500 ${resolvedTheme === "dark"
+                ? "bg-background/60"
+                : "bg-background/55"
+              }`} />
+            {/* Fade to background at bottom so sections below blend seamlessly */}
+            <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-background to-transparent" />
+          </div>
+
+          {/* Content */}
+          <motion.div
+            initial={{ opacity: 0, y: 32 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 max-w-5xl mx-auto"
+          >
+            {/* Eyebrow */}
+            <motion.p
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="text-sm font-semibold tracking-[0.2em] uppercase text-indigo-500 mb-8"
+            >
+              Origin.ai — Agricultural Intelligence Platform
+            </motion.p>
+
+            {/* Main Headline */}
+            <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="text-6xl md:text-8xl font-extrabold tracking-tight leading-[1.05] mb-8"
             >
-              <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-4 py-2 rounded-full text-sm font-medium mb-8 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-                <Sparkles className="h-4 w-4" />
-                Meet Your AI-Powered Laboratory Assistant
-              </div>
+              From nucleus.
+              <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-400 to-emerald-400">
+                To harvest.
+              </span>
+            </motion.h1>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold tracking-tight mb-6 leading-tight">
-                Tissue Culture Data Management, <br className="hidden md:block" />
-                <span className="bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-500 bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient-x">
-                  Supercharged by AI
-                </span>
-              </h1>
+            {/* Sub-headline */}
+            <motion.p
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.35 }}
+              className="text-xl md:text-2xl text-muted-foreground font-light max-w-2xl mx-auto mb-14 leading-relaxed"
+            >
+              The complete intelligence platform for tissue culture labs
+              <br className="hidden md:block" /> and field seed multiplication — in one system.
+            </motion.p>
 
-              <p className="text-lg sm:text-xl text-muted-foreground mb-10 max-w-3xl mx-auto leading-relaxed">
-                Connected to our entire laboratory live database.
-                <strong className="text-foreground font-semibold"> Get data in real-time with simple human language queries.</strong> No complex menus—just ask your AI assistant.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <Button onClick={() => setShowLoginModal(true)} size="lg" className="w-full sm:w-auto h-14 px-8 text-base bg-foreground text-background hover:bg-foreground/90 rounded-full group shadow-xl">
-                  <Bot className="mr-2 h-5 w-5 group-hover:rotate-12 transition-transform" />
-                  Login with Microsoft
-                </Button>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* AI Showcase Section */}
-        <section className="py-12 px-4 relative z-20">
-          <div className="container mx-auto max-w-5xl">
+            {/* CTA */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.7, delay: 0.2 }}
-              className="rounded-2xl border border-white/10 bg-background/40 backdrop-blur-xl shadow-2xl overflow-hidden"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+              className="flex items-center justify-center gap-4"
             >
-              <div className="border-b border-white/10 bg-muted/30 p-4 flex items-center gap-3">
-                <div className="flex gap-1.5">
-                  <div className="h-3 w-3 rounded-full bg-red-500/80" />
-                  <div className="h-3 w-3 rounded-full bg-yellow-500/80" />
-                  <div className="h-3 w-3 rounded-full bg-green-500/80" />
-                </div>
-                <div className="text-xs text-muted-foreground font-medium flex items-center gap-2">
-                  <MessageSquareText className="h-3.5 w-3.5" />
-                  AI Query Interface
-                </div>
-              </div>
-              <div className="p-6 sm:p-10 space-y-6 bg-gradient-to-b from-transparent to-background/50">
-                {/* First exchange — DB query */}
-                <div className="flex items-start gap-4">
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-                    <Users className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div className="bg-muted px-4 py-3 rounded-2xl rounded-tl-sm max-w-[80%] text-sm sm:text-base">
-                    "What is the total number of bottles produced in the Multiplication stage recently?"
-                  </div>
-                </div>
-                <div className="flex items-start gap-4 flex-row-reverse">
-                  <div className="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                    <Bot className="h-5 w-5 text-emerald-500" />
-                  </div>
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 rounded-2xl rounded-tr-sm max-w-[80%] text-sm sm:text-base">
-                    <p className="mb-2">Based on the live database, there have been <strong>12,450 bottles produced</strong> in the Multiplication stage over the last 30 days.</p>
-                    <p className="text-xs opacity-80">Connected to recent technician logs.</p>
-                  </div>
-                </div>
-
-                {/* Second exchange — Action tool: send progress report */}
-                <div className="flex items-start gap-4 pt-1">
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-                    <Users className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div className="bg-muted px-4 py-3 rounded-2xl rounded-tl-sm max-w-[80%] text-sm sm:text-base">
-                    "Send the progress report and expense from 01-05-2026 to 27-05-2026 to my_manager@dcmhsriram.com"
-                  </div>
-                </div>
-                <div className="flex items-start gap-4 flex-row-reverse">
-                  <div className="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                    <Bot className="h-5 w-5 text-emerald-500" />
-                  </div>
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 rounded-2xl rounded-tr-sm max-w-[80%] text-sm sm:text-base">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                      </span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400 text-xs uppercase tracking-wide">Background Tasks Queued</span>
-                    </div>
-                    <p className="mb-2">
-                      ✅ The <strong>Progress Report</strong> and <strong>Expenses Report</strong> (01-05-2026 to 27-05-2026) are being generated and will be emailed to <strong>my_manager@dcmhsriram.com</strong> shortly.
-                    </p>
-                    <p className="text-xs opacity-70">Automated Celery worker tasks dispatched successfully.</p>
-                  </div>
-                </div>
-
-                {/* Third exchange — RAG Pipeline SOP query */}
-                <div className="flex items-start gap-4 pt-1">
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-                    <Users className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div className="bg-muted px-4 py-3 rounded-2xl rounded-tl-sm max-w-[80%] text-sm sm:text-base">
-                    "What is the SOP for handling a sodium hypochlorite spill?"
-                  </div>
-                </div>
-                <div className="flex items-start gap-4 flex-row-reverse">
-                  <div className="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                    <Bot className="h-5 w-5 text-emerald-500" />
-                  </div>
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 rounded-2xl rounded-tr-sm max-w-[80%] text-sm sm:text-base">
-                    <p className="mb-2">
-                      According to the <strong>Laboratory Safety MSDS (Page 14)</strong> retrieved from Azure Blob:
-                    </p>
-                    <ul className="list-disc list-inside text-sm space-y-1 mb-2">
-                      <li>Evacuate the immediate area.</li>
-                      <li>Wear appropriate PPE (gloves, goggles).</li>
-                      <li>Neutralize the spill with sodium thiosulfate.</li>
-                      <li>Wipe from the outside in to prevent spreading.</li>
-                    </ul>
-                    <p className="text-xs opacity-70">Retrieved via FAISS Vector Database similarity search.</p>
-                  </div>
-                </div>
-
-                {/* Fourth exchange — Chart Visualization query */}
-                <div className="flex items-start gap-4 pt-1">
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-                    <Users className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div className="bg-muted px-4 py-3 rounded-2xl rounded-tl-sm max-w-[80%] text-sm sm:text-base">
-                    "Plot a pie chart of contamination events by variety over the last month."
-                  </div>
-                </div>
-                <div className="flex items-start gap-4 flex-row-reverse">
-                  <div className="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 border border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                    <Bot className="h-5 w-5 text-emerald-500" />
-                  </div>
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 rounded-2xl rounded-tr-sm max-w-[80%] text-sm sm:text-base w-full max-w-[320px]">
-                    <div className="h-32 w-full flex items-center justify-center bg-background/50 rounded-lg border border-border/50 mb-3">
-                      <PieChart className="h-12 w-12 text-emerald-500/50" />
-                      <span className="ml-2 text-xs text-muted-foreground font-medium uppercase tracking-wider">Interactive Chart Rendered</span>
-                    </div>
-                    <p className="mb-1 text-sm">
-                      Based on the live database, <strong>Variety SC-001</strong> has the highest contamination rate (45%), followed by <strong>Variety VD-201</strong> (30%).
-                    </p>
-                    <p className="text-xs opacity-70">Generated using Recharts from live SQL metrics.</p>
-                  </div>
-                </div>
-              </div>
+              <button
+                onClick={() => setShowLoginModal(true)}
+                className="group relative px-8 py-4 rounded-full bg-foreground text-background font-semibold text-base transition-all hover:bg-foreground/90 hover:scale-[1.03] active:scale-[0.98] shadow-xl"
+              >
+                <span className="flex items-center gap-2">
+                  Get Started <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </span>
+              </button>
+              <button
+                onClick={() => setShowLoginModal(true)}
+                className="px-8 py-4 rounded-full border border-border text-foreground font-semibold text-base transition-all hover:bg-muted hover:scale-[1.03] active:scale-[0.98] backdrop-blur-sm"
+              >
+                Sign In
+              </button>
             </motion.div>
-          </div>
+          </motion.div>
+
+          {/* Bottom stat strip */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.75 }}
+            className="absolute bottom-12 left-0 right-0 flex items-center justify-center gap-12 text-center z-10"
+          >
+            {[
+              { value: "5", label: "Production Stages" },
+              { value: "4-Year", label: "Seed Genealogy" },
+              { value: "Real-Time", label: "AI Analytics" },
+            ].map((stat) => (
+              <div key={stat.label} className="flex flex-col items-center gap-1">
+                <span className="text-2xl font-bold text-foreground">{stat.value}</span>
+                <span className="text-xs text-muted-foreground font-medium tracking-wide uppercase">{stat.label}</span>
+              </div>
+            ))}
+          </motion.div>
+
         </section>
 
-        {/* Features Grid */}
-        <section className="py-24 px-4 relative z-10 bg-background/50 backdrop-blur-md border-y border-white/5">
-          <div className="container mx-auto max-w-6xl">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl font-bold mb-4">
-                Smarter workflows with Intelligent Management
-              </h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                Our AI actively monitors your live laboratory database, ensuring nothing falls through the cracks.
+
+
+        {/* LABNEST MODULE */}
+        <section className="py-24 px-6 relative border-t border-border/50 bg-muted/20">
+          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16">
+            <div className="flex-1 space-y-6">
+              <div className="h-14 w-14 rounded-2xl bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center mb-2 shadow-sm border border-violet-500/20">
+                <FlaskConical className="h-7 w-7" />
+              </div>
+              <h2 className="text-4xl font-bold tracking-tight">LabNest Module</h2>
+              <p className="text-lg text-muted-foreground mb-8">
+                The ultimate Tissue Culture LIMS. Streamline your entire laboratory workflow from media preparation to greenhouse transplantation.
               </p>
-            </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {features.map((feature, index) => (
-                <motion.div
-                  key={feature.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                >
-                  <Card className={`h-full glass-card hover:-translate-y-2 hover:shadow-xl transition-all duration-300 ${feature.highlight ? 'border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : ''}`}>
-                    <CardContent className="p-6 relative overflow-hidden">
-                      {feature.highlight && (
-                        <div className="absolute top-0 right-0 p-4">
-                          <span className="relative flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                          </span>
-                        </div>
-                      )}
-                      <div className={`h-12 w-12 rounded-xl flex items-center justify-center mb-5 ${feature.highlight ? 'bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg' : 'bg-primary/10 text-primary'}`}>
-                        <feature.icon className="h-6 w-6" />
-                      </div>
-                      <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
-                      <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
 
-        {/* Benefits Section */}
-        <section className="py-24 px-4">
-          <div className="container mx-auto max-w-6xl">
-            <div className="grid lg:grid-cols-2 gap-16 items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 bg-purple-500/10 text-purple-600 dark:text-purple-400 px-4 py-2 rounded-full text-sm font-medium mb-6">
-                  <Database className="h-4 w-4" />
-                  Live Data Integration
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="flex flex-col gap-2">
+                  <Activity className="h-5 w-5 text-violet-500" />
+                  <h4 className="font-bold text-foreground">Complete Stage Tracking</h4>
+                  <p className="text-sm text-muted-foreground">Monitor every stage: Initiation, Multiplication, Rooting, Hardening, and Transplantation with exact metrics.</p>
                 </div>
-                <h2 className="text-3xl sm:text-4xl font-bold mb-6 leading-tight">
-                  Instantly connected to your <br className="hidden sm:block" />
-                  entire laboratory
-                </h2>
-                <p className="text-muted-foreground mb-8 text-lg">
-                  Every batch prepared, every chemical weighed, and every contamination reported is instantly analyzed by our AI to give you real-time visibility.
-                </p>
-                <ul className="space-y-5">
-                  {benefits.map((benefit) => (
-                    <li key={benefit} className="flex items-center gap-4">
-                      <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                      </div>
-                      <span className="font-medium">{benefit}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-10">
-                  <Link to="/login">
-                    <Button size="lg" className="h-12 px-8 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-500/20 border-0">
-                      Experience the AI
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
+                <div className="flex flex-col gap-2">
+                  <BarChart3 className="h-5 w-5 text-violet-500" />
+                  <h4 className="font-bold text-foreground">Cost per Plantlet Analysis</h4>
+                  <p className="text-sm text-muted-foreground">Dynamic pro-rating of manpower and chemical expenses to determine precise production costs.</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Database className="h-5 w-5 text-violet-500" />
+                  <h4 className="font-bold text-foreground">Chemical Inventory & Alerts</h4>
+                  <p className="text-sm text-muted-foreground">Automated stock deduction, expiry tracking, and scheduled email alerts for low inventory.</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <ShieldCheck className="h-5 w-5 text-violet-500" />
+                  <h4 className="font-bold text-foreground">Role-Based Access (RBAC)</h4>
+                  <p className="text-sm text-muted-foreground">Secure your data with strict granular permissions for Technicians, Admins, and Viewers.</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Zap className="h-5 w-5 text-violet-500" />
+                  <h4 className="font-bold text-foreground">Async Background Reports</h4>
+                  <p className="text-sm text-muted-foreground">Progress & Expense Excel reports are generated via Background workers for zero-blocking performance.</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <LineChart className="h-5 w-5 text-violet-500" />
+                  <h4 className="font-bold text-foreground">OLAP-Powered Dashboard</h4>
+                  <p className="text-sm text-muted-foreground">Precomputed analytics views ensure lightning-fast dashboard loading speeds.</p>
                 </div>
               </div>
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/20 to-purple-500/20 blur-3xl rounded-full" />
-                <div className="relative aspect-square rounded-3xl bg-background/40 backdrop-blur-xl border border-white/10 shadow-2xl flex items-center justify-center overflow-hidden group">
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  <div className="text-center p-8 relative z-10">
-                    <div className="relative mb-8 mx-auto w-32 h-32">
-                      <div className="absolute inset-0 border-2 border-dashed border-emerald-500/30 rounded-full animate-[spin_10s_linear_infinite]" />
-                      <div className="absolute inset-2 border-2 border-dashed border-purple-500/30 rounded-full animate-[spin_15s_linear_infinite_reverse]" />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Bot className="h-14 w-14 text-foreground drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
-                      </div>
+            </div>
+
+            <div className="flex-1 w-full relative">
+              <div className="absolute -inset-4 bg-gradient-to-r from-violet-500 to-indigo-500 rounded-[2.5rem] blur-xl opacity-20 -z-10"></div>
+              <div className="bg-card border border-border shadow-2xl rounded-3xl p-6 overflow-hidden">
+                <div className="flex justify-between items-center border-b border-border pb-4 mb-4">
+                  <h3 className="font-bold flex items-center gap-2"><Mail className="h-4 w-4 text-violet-500" /> Weekly Automated Reports</h3>
+                  <div className="px-3 py-1 bg-violet-500/10 text-violet-600 rounded-full text-xs font-bold">Scheduled</div>
+                </div>
+                <div className="space-y-3">
+                  <div className="p-4 bg-muted rounded-xl flex items-start gap-4">
+                    <div className="h-10 w-10 bg-green-500/10 rounded-full flex items-center justify-center shrink-0">
+                      <LineChart className="h-5 w-5 text-green-600" />
                     </div>
-                    <h3 className="text-2xl font-bold mb-3">AI is Ready</h3>
-                    <p className="text-muted-foreground text-sm sm:text-base px-6">
-                      Your virtual assistant is waiting to help manage your workflow.
-                    </p>
+                    <div>
+                      <p className="text-sm font-bold">Progress Report Generated</p>
+                      <p className="text-xs text-muted-foreground mt-1">Background task completed in 1.2s. Email dispatched successfully to Manager.</p>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-muted rounded-xl flex items-start gap-4">
+                    <div className="h-10 w-10 bg-red-500/10 rounded-full flex items-center justify-center shrink-0">
+                      <Activity className="h-5 w-5 text-red-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">Expiry Alert Dispatched</p>
+                      <p className="text-xs text-muted-foreground mt-1">2 chemicals expiring in 30 days. Auto-email sent to Procurement.</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -389,129 +282,387 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="py-24 px-4">
-          <div className="container mx-auto max-w-5xl">
-            <div className="rounded-3xl bg-gradient-to-r from-emerald-600 to-teal-600 p-10 sm:p-16 text-center shadow-2xl relative overflow-hidden">
-              <div className="absolute inset-0 opacity-20 mix-blend-overlay" style={{ backgroundImage: "url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E')" }}></div>
-              <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-              <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-black/10 blur-3xl" />
+        {/* FIELDLINK MODULE */}
+        <section className="py-24 px-6 relative">
+          <div className="max-w-7xl mx-auto flex flex-col-reverse lg:flex-row items-center gap-16">
+            <div className="flex-1 w-full relative">
+              <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-[2.5rem] blur-xl opacity-20 -z-10"></div>
+              <div className="bg-card border border-border shadow-2xl rounded-3xl overflow-hidden">
+                <img
+                  src="/fieldlink_plot_map.png"
+                  alt="Live satellite plot view with polygon boundary and lot popup"
+                  className="w-full h-auto block"
+                  style={{ display: "block", maxHeight: "480px", objectFit: "cover", objectPosition: "center top" }}
+                />
+              </div>
+            </div>
 
-              <div className="relative z-10">
-                <h2 className="text-3xl sm:text-4xl font-bold mb-6 text-white flex items-center justify-center gap-3">
-                  <Bot className="h-8 w-8" /> Ready to talk to your laboratory data?
-                </h2>
-                <p className="text-emerald-50 text-lg mb-10 max-w-2xl mx-auto">
-                  Secure internal access for DCM Shriram personnel. Join now to utilize real-time AI capabilities and transform how you manage tissue culture.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link to="/login">
-                    <Button size="lg" className="w-full sm:w-auto h-14 px-8 bg-white text-emerald-700 hover:bg-gray-100 rounded-full font-semibold shadow-xl border-0">
-                      Login with Microsoft SSO
-                    </Button>
-                  </Link>
+            <div className="flex-1 space-y-6">
+              <div className="h-14 w-14 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2 shadow-sm border border-emerald-500/20">
+                <Tractor className="h-7 w-7" />
+              </div>
+              <h2 className="text-4xl font-bold tracking-tight">FieldLink Module</h2>
+              <p className="text-lg text-muted-foreground mb-8">
+                Take plantlets into the soil with complete visibility. Monitor the massive 4-year seed multiplication cycle using satellite mapping and strict parent-child tracking.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="flex flex-col gap-2">
+                  <Database className="h-5 w-5 text-emerald-500" />
+                  <h4 className="font-bold text-foreground">Seed Lot Registry</h4>
+                  <p className="text-sm text-muted-foreground">Manage lots, partial dispatches, harvests, and stage progression from Breeder to Commercial.</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <GitBranch className="h-5 w-5 text-emerald-500" />
+                  <h4 className="font-bold text-foreground">Genealogy Tracer</h4>
+                  <p className="text-sm text-muted-foreground">Visually trace commercial seeds back through their lineage straight to the exact lab tissue culture batch.</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Map className="h-5 w-5 text-emerald-500" />
+                  <h4 className="font-bold text-foreground">Geo-Spatial Map View</h4>
+                  <p className="text-sm text-muted-foreground">Interactive satellite maps to locate plots, view active lots, adjust boundaries, and auto-calculate acreage.</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Users className="h-5 w-5 text-emerald-500" />
+                  <h4 className="font-bold text-foreground">Farmer Registry & Rating</h4>
+                  <p className="text-sm text-muted-foreground">Maintain a database of contract farmers and automatically rate them based on multiplication ratios.</p>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Footer */}
-        <footer className="border-t border-border/10 py-10 px-4 bg-background/80 backdrop-blur-xl">
-          <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                <Bot className="h-5 w-5 text-white" />
-              </div>
-              <span className="font-bold text-lg">DCM LabNest</span>
+        {/* AI ASSISTANT SHOWCASE */}
+        <section className="py-24 px-6 border-t border-border/50 bg-indigo-950/5 dark:bg-indigo-900/10">
+          <div className="max-w-4xl mx-auto text-center mb-16">
+            <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow-xl mb-6">
+              <Bot className="h-8 w-8 text-white" />
             </div>
-            <div className="flex items-center gap-6 text-sm text-muted-foreground font-medium">
-              <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
-              <a href="#" className="hover:text-foreground transition-colors">Terms</a>
-              <a href="#" className="hover:text-foreground transition-colors">Help Center</a>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-6 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-sm font-semibold">
+              <GitBranch className="h-4 w-4" /> Powered by LangGraph Multi-Agent Architecture
             </div>
-            <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} DCM Shriram Ltd. All rights reserved.
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">Talk to your enterprise data.</h2>
+            <p className="text-xl text-muted-foreground">
+              Origin AI operates seamlessly across both LabNest and FieldLink. With session-aware memory, it remembers the context of your daily workflow. Stop wrestling with spreadsheets—just ask in plain English and get instant, board-ready insights.
             </p>
           </div>
-        </footer>
-      </div>
 
-      {/* iOS-style Login Modal */}
+          {/* ── Chat Window Mockup ── */}
+          <motion.div 
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            whileInView={{ opacity: 1, y: 0, scale: 1 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="max-w-3xl mx-auto"
+          >
+            <div className="bg-card border border-border rounded-3xl shadow-2xl overflow-hidden hover:shadow-indigo-500/10 transition-shadow duration-500">
+
+              {/* Chat Header */}
+              <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-indigo-700 via-indigo-600 to-purple-700 border-b border-white/10">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20">
+                  <Bot className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white leading-none">Origin<span className="text-indigo-200">.AI</span></p>
+                  <p className="text-[11px] text-white/60 mt-0.5">Your end-to-end lab intelligence assistant</p>
+                </div>
+                <div className="ml-auto flex items-center gap-2 bg-white/10 rounded-full px-3 py-1">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+                  </span>
+                  <span className="text-[11px] font-semibold text-white/80">Live</span>
+                </div>
+              </div>
+
+              {/* Messages */}
+              <div className="flex flex-col gap-5 p-6 bg-background/50">
+
+                {/* ── Turn 1: Visualization ── */}
+                {/* User */}
+                <div className="flex items-end gap-3 flex-row-reverse">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow">
+                    <User className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="max-w-[72%] rounded-2xl rounded-br-sm bg-gradient-to-br from-indigo-600 to-purple-600 text-white px-4 py-3 text-sm shadow">
+                    Show me a pie chart of contamination events by variety this month
+                  </div>
+                </div>
+                {/* AI */}
+                <div className="flex items-end gap-3">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/40 shadow">
+                    <Bot className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <div className="max-w-[80%] rounded-2xl rounded-bl-sm bg-card border border-border/60 px-4 py-3 text-sm shadow-sm space-y-3">
+                    <p className="text-muted-foreground text-xs font-medium">Here is the contamination breakdown for this month:</p>
+                    {/* Mini Pie Chart */}
+                    <div className="flex items-center gap-5 p-3 bg-muted/40 rounded-xl border border-border/40">
+                      <div
+                        className="w-16 h-16 rounded-full flex-shrink-0 shadow-inner"
+                        style={{ background: "conic-gradient(#6366f1 0% 45%, #10b981 45% 75%, #8b5cf6 75% 100%)" }}
+                      />
+                      <div className="flex flex-col gap-1.5 text-xs text-foreground">
+                        <div className="flex items-center gap-2 font-medium"><div className="w-2.5 h-2.5 rounded-full bg-indigo-500 flex-shrink-0"></div> Co-0238 — <span className="font-bold">45%</span></div>
+                        <div className="flex items-center gap-2 font-medium"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0"></div> Co-0118 — <span className="font-bold">30%</span></div>
+                        <div className="flex items-center gap-2 font-medium"><div className="w-2.5 h-2.5 rounded-full bg-violet-500 flex-shrink-0"></div> Others — <span className="font-bold">25%</span></div>
+                      </div>
+                    </div>
+                    <p className="text-foreground/80">Co-0238 leads contamination this month at 45%, primarily due to fungal infections in Growth Room B.</p>
+                  </div>
+                </div>
+
+                {/* ── Turn 2: Cross-Module ── */}
+                {/* User */}
+                <div className="flex items-end gap-3 flex-row-reverse">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow">
+                    <User className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="max-w-[72%] rounded-2xl rounded-br-sm bg-gradient-to-br from-indigo-600 to-purple-600 text-white px-4 py-3 text-sm shadow">
+                    How many plantlets from LabNest were dispatched to Loni this season?
+                  </div>
+                </div>
+                {/* AI */}
+                <div className="flex items-end gap-3">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/40 shadow">
+                    <Bot className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <div className="max-w-[80%] rounded-2xl rounded-bl-sm bg-card border border-border/60 px-4 py-3 text-sm shadow-sm space-y-2">
+                    <p className="text-foreground/80">Here's the <span className="font-semibold text-emerald-600 dark:text-emerald-400">LabNest → Loni</span> pipeline for this season:</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-muted/40 rounded-lg p-2 text-center border border-border/40">
+                        <p className="text-[10px] text-muted-foreground">Initiated</p>
+                        <p className="text-base font-bold text-foreground">14,200</p>
+                      </div>
+                      <div className="bg-muted/40 rounded-lg p-2 text-center border border-border/40">
+                        <p className="text-[10px] text-muted-foreground">Hardened</p>
+                        <p className="text-base font-bold text-emerald-600">11,500</p>
+                      </div>
+                      <div className="bg-muted/40 rounded-lg p-2 text-center border border-border/40">
+                        <p className="text-[10px] text-muted-foreground">Dispatched</p>
+                        <p className="text-base font-bold text-indigo-600">11,500</p>
+                      </div>
+                    </div>
+                    <p className="text-foreground/70 text-xs">All hardened plantlets were successfully dispatched to Loni fields for multiplication.</p>
+                  </div>
+                </div>
+
+                {/* ── Turn 3: Report Generation ── */}
+                {/* User */}
+                <div className="flex items-end gap-3 flex-row-reverse">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow">
+                    <User className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="max-w-[72%] rounded-2xl rounded-br-sm bg-gradient-to-br from-indigo-600 to-purple-600 text-white px-4 py-3 text-sm shadow">
+                    Hey, can you create a progress report and expense report for this season and send it to my manager?
+                  </div>
+                </div>
+                {/* AI */}
+                <div className="flex items-end gap-3">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/40 shadow">
+                    <Bot className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <div className="max-w-[80%] rounded-2xl rounded-bl-sm bg-card border border-border/60 px-4 py-3 text-sm shadow-sm space-y-3">
+                    <p className="text-foreground/80">On it! Here's what I did:</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2.5 text-xs text-foreground/80">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+                        <span>Progress Report compiled for Season 2025-26</span>
+                      </div>
+                      <div className="flex items-center gap-2.5 text-xs text-foreground/80">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+                        <span>Expense Report compiled — Total: ₹4,18,200</span>
+                      </div>
+                      <div className="flex items-center gap-2.5 text-xs text-foreground/80">
+                        <Mail className="h-4 w-4 text-indigo-500 flex-shrink-0" />
+                        <span>Both reports emailed to <span className="font-semibold text-foreground">manager@dcmshriram.com</span></span>
+                      </div>
+                    </div>
+                    <p className="text-muted-foreground text-xs border-t border-border/40 pt-2">Reports were generated in the background and delivered without disrupting your workflow.</p>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Fake Input Bar */}
+              <div className="px-5 py-4 border-t border-border bg-background/70 backdrop-blur-sm">
+                <div className="flex items-center gap-3 bg-muted/50 border border-border rounded-xl px-4 py-2.5">
+                  <span className="flex-1 text-sm text-muted-foreground/50">Ask a question about your data…</span>
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600">
+                    <Send className="h-3.5 w-3.5 text-white" />
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </motion.div>
+        </section>
+
+      </main>
+
+      {/* ── FOOTER ── */}
+      <footer className="relative z-10 border-t border-border/50 bg-background/80 backdrop-blur-xl">
+        {/* Gradient accent line at top */}
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-indigo-500/60 to-transparent" />
+
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8, staggerChildren: 0.1 }}
+          className="max-w-7xl mx-auto px-6 py-14"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+
+            {/* Brand Column */}
+            <div className="md:col-span-1 flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <BrandLogo size="h-9 w-9" rounded="rounded-xl" />
+                <span className="text-lg font-bold tracking-tight">Origin<span className="text-indigo-500">.ai</span></span>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                End-to-end intelligence platform for seed production — from tissue culture to field harvest.
+              </p>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs text-muted-foreground font-medium">All systems operational</span>
+              </div>
+            </div>
+
+            {/* LabNest Column */}
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2 mb-1">
+                <FlaskConical className="h-4 w-4 text-indigo-500" />
+                <h4 className="text-sm font-bold text-foreground">LabNest</h4>
+              </div>
+              {[
+                "Production Dashboard",
+                "Daily Production Log",
+                "Chemical Inventory",
+                "Expense Tracking",
+                "Progress Reports",
+              ].map((item) => (
+                <button
+                  key={item}
+                  onClick={() => setShowLoginModal(true)}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors text-left"
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+
+            {/* FieldLink Column */}
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Tractor className="h-4 w-4 text-emerald-500" />
+                <h4 className="text-sm font-bold text-foreground">FieldLink</h4>
+              </div>
+              {[
+                "Seed Lot Registry",
+                "Plot Satellite Map",
+                "Genealogy Tracer",
+                "Farmer Registry",
+                "Dispatch & Harvest",
+              ].map((item) => (
+                <button
+                  key={item}
+                  onClick={() => setShowLoginModal(true)}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors text-left"
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+
+            {/* Origin.AI Column */}
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Bot className="h-4 w-4 text-purple-500" />
+                <h4 className="text-sm font-bold text-foreground">Origin.AI</h4>
+              </div>
+              {[
+                "AI Assistant",
+                "Session-Aware AI Memory",
+                "Multi-Agent Supervisor",
+                "Dynamic Visualizations",
+                "Automated Reporting",
+              ].map((item) => (
+                <button
+                  key={item}
+                  onClick={() => setShowLoginModal(true)}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors text-left"
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+
+          </div>
+
+          {/* Divider */}
+          <div className="mt-12 pt-6 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-xs text-muted-foreground">
+              © {new Date().getFullYear()} <span className="font-semibold text-foreground">DCM Shriram Ltd.</span> — Origin.ai Platform. All rights reserved.
+            </p>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+              <span>Secured with Microsoft Azure AD · Role-Based Access Control</span>
+            </div>
+          </div>
+        </motion.div>
+      </footer>
+
+      {/* LOGIN MODAL */}
       <AnimatePresence>
         {showLoginModal && (
-          <>
-            {/* Backdrop */}
+          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-md"
               onClick={() => setShowLoginModal(false)}
+              className="absolute inset-0 bg-background/90 backdrop-blur-md"
             />
-
-            {/* Modal */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none"
+              className="relative w-full max-w-md bg-card border border-border rounded-3xl p-8 shadow-2xl overflow-hidden"
             >
-              <div className="w-full max-w-sm pointer-events-auto">
-                <div className="bg-background/80 dark:bg-background/40 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-                  {/* Close button */}
-                  <button
-                    onClick={() => setShowLoginModal(false)}
-                    className="absolute top-4 right-4 p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-                  >
-                    <X className="h-5 w-5 text-muted-foreground" />
-                  </button>
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500" />
 
-                  <div className="flex flex-col items-center text-center">
-                    <div className="h-14 w-14 rounded-2xl flex items-center justify-center mb-5 shadow-lg bg-gradient-to-br from-violet-600 to-indigo-600">
-                      <Sprout className="h-7 w-7 text-white" />
-                    </div>
-                    
-                    <h2 className="text-2xl font-bold tracking-tight text-foreground mb-2">
-                      Welcome back
-                    </h2>
-                    <p className="text-sm text-muted-foreground mb-8">
-                      Sign in with your organization account to access the AI dashboard.
-                    </p>
+              <button
+                onClick={() => setShowLoginModal(false)}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
 
-                    <Button
-                      onClick={handleLogin}
-                      disabled={isLoggingIn}
-                      className="w-full h-12 rounded-xl text-sm font-semibold text-white shadow-lg shadow-blue-500/20 bg-gradient-to-br from-[#0078d4] to-[#005a9e] hover:opacity-90 transition-opacity"
-                    >
-                      {isLoggingIn ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Redirecting...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="mr-3" width="18" height="18" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M10 0H0V10H10V0Z" fill="#F25022" />
-                            <path d="M21 0H11V10H21V0Z" fill="#7FBA00" />
-                            <path d="M10 11H0V21H10V11Z" fill="#00A4EF" />
-                            <path d="M21 11H11V21H21V11Z" fill="#FFB900" />
-                          </svg>
-                          Sign In with Microsoft
-                        </>
-                      )}
-                    </Button>
-                    
-                    <p className="text-xs text-muted-foreground/60 mt-6 max-w-[250px] mx-auto">
-                      Access is restricted to authorized DCM Shriram personnel.
-                    </p>
-                  </div>
-                </div>
+              <div className="flex flex-col items-center mb-8 pt-4">
+                <BrandLogo size="h-16 w-16" rounded="rounded-2xl" className="mb-6 shadow-lg" />
+                <h2 className="text-2xl font-bold tracking-tight mb-2">Welcome to Origin.ai</h2>
+                <p className="text-sm text-muted-foreground text-center">Sign in to access LabNest, FieldLink, and the AI Assistant.</p>
               </div>
+
+              <button
+                onClick={handleLogin}
+                disabled={isLoggingIn}
+                className="w-full py-4 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-60 flex items-center justify-center gap-3 bg-[#0078d4] hover:bg-[#006cbd] shadow-md"
+              >
+                {isLoggingIn ? <><Loader2 className="h-5 w-5 animate-spin" /> Authenticating...</> : (
+                  <>
+                    <svg width="20" height="20" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10 0H0V10H10V0Z" fill="#F25022" />
+                      <path d="M21 0H11V10H21V0Z" fill="#7FBA00" />
+                      <path d="M10 11H0V21H10V11Z" fill="#00A4EF" />
+                      <path d="M21 11H11V21H21V11Z" fill="#FFB900" />
+                    </svg>
+                    Continue with Microsoft
+                  </>
+                )}
+              </button>
             </motion.div>
-          </>
+          </div>
         )}
       </AnimatePresence>
     </div>

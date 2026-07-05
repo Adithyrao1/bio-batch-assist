@@ -21,7 +21,8 @@ from .models import (
     InitiationLog, MultiplicationLog, RootingLog, HardeningLog, TransplantationLog,
     RecentActivity,
     StockSolution, StockSolutionPreparation, StockSolutionChemicalUsage, StockSolutionRecipeItem,
-    ExpenseCategory, Expense, ManpowerExpense
+    ExpenseCategory, Expense, ManpowerExpense,
+    FieldLocation, Plot, FieldManager, Farmer, SeedLot, SeedLotTransaction
 )
 from .serializers import (
     UserSerializer, UserCreateSerializer, UserRoleUpdateSerializer,
@@ -30,7 +31,9 @@ from .serializers import (
     RootingLogSerializer, HardeningLogSerializer, TransplantationLogSerializer,
     UserProfileSerializer, RecentActivitySerializer,
     StockSolutionSerializer, StockSolutionPreparationSerializer, StockSolutionRecipeItemSerializer,
-    ExpenseCategorySerializer, ExpenseSerializer, ManpowerExpenseSerializer
+    ExpenseCategorySerializer, ExpenseSerializer, ManpowerExpenseSerializer,
+    FieldLocationSerializer, PlotSerializer, FieldManagerSerializer, FarmerSerializer,
+    SeedLotSerializer, SeedLotTransactionSerializer
 )
 
 
@@ -139,7 +142,95 @@ class EntraLoginView(APIView):
                 'last_name': user.last_name,
                 'email': user.email,
                 'role': user.role,
+                'is_onboarded': user.is_onboarded,
                 'profile_picture': request.build_absolute_uri(user.profile_picture.url) if user.profile_picture else None,
+            }
+        })
+
+
+class PendingUsersView(APIView):
+    """
+    GET /api/auth/admin/pending-users/
+    Returns all users who have signed in but have not yet been approved (is_onboarded=False).
+    Admin-only.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'admin':
+            return Response(
+                {'error': 'Only admins can view pending users.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        pending = User.objects.filter(is_onboarded=False).order_by('-date_joined')
+        users_data = [
+            {
+                'id': u.id,
+                'username': u.username,
+                'first_name': u.first_name,
+                'last_name': u.last_name,
+                'email': u.email,
+                'role': u.role,
+                'date_joined': u.date_joined.strftime('%Y-%m-%d %H:%M'),
+            }
+            for u in pending
+        ]
+        return Response({'pending_users': users_data, 'count': len(users_data)})
+
+
+class AdminApproveUserView(APIView):
+    """
+    POST /api/auth/admin/approve-user/
+    Body: {"user_id": 5, "role": "technician"}
+    Admin-only. Approves a pending user by setting their role and is_onboarded=True.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if request.user.role != 'admin':
+            return Response(
+                {'error': 'Only admins can approve users.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        user_id = request.data.get('user_id')
+        role = request.data.get('role')
+
+        if not user_id:
+            return Response(
+                {'error': 'user_id is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if role not in ('technician', 'admin'):
+            return Response(
+                {'error': 'Invalid role. Choose "technician" or "admin".'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            target_user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {'error': f'User with id {user_id} not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        target_user.role = role
+        target_user.is_onboarded = True
+        target_user.save(update_fields=['role', 'is_onboarded'])
+
+        return Response({
+            'message': f'{target_user.get_full_name() or target_user.username} has been approved as {role}.',
+            'user': {
+                'id': target_user.id,
+                'username': target_user.username,
+                'first_name': target_user.first_name,
+                'last_name': target_user.last_name,
+                'email': target_user.email,
+                'role': target_user.role,
+                'is_onboarded': target_user.is_onboarded,
             }
         })
 
@@ -418,7 +509,43 @@ class TransplantationLogViewSet(viewsets.ModelViewSet):
     serializer_class = TransplantationLogSerializer
     permission_classes = [IsAdminOrTechnician]
     def perform_create(self, serializer):
-        serializer.save(technician=self.request.user)
+        from django.db import transaction
+        from core.models import SeedLot, SeedLotTransaction
+        with transaction.atomic():
+            instance = serializer.save(technician=self.request.user)
+            field_lot_id = serializer.validated_data.get('field_lot_id')
+            if field_lot_id:
+                custom_plot_id = self.request.data.get('custom_plot_id', '')
+                custom_coordinates = self.request.data.get('custom_coordinates', '')
+                
+                # Construct a lab batch reference using date and instance ID since there's no explicit batch_id
+                lab_ref = f"LAB-{instance.date.strftime('%Y%m%d')}-{instance.id}"
+                
+                # Automatically create the root FieldLink Breeder SeedLot
+                seed_lot = SeedLot.objects.create(
+                    lot_id=field_lot_id,
+                    stage='breeder',
+                    variety=instance.variety,
+                    quantity_kg=instance.seedlings_transplanted,
+                    season_year=instance.date.year,
+                    status='in_field',
+                    farmer=instance.farmer,
+                    location=instance.location,
+                    custom_plot_id=custom_plot_id,
+                    custom_coordinates=custom_coordinates,
+                    lab_batch_reference=lab_ref,
+                    notes=f"Auto-generated from LabNest Transplantation (Ref: {lab_ref})",
+                    created_by=self.request.user,
+                )
+                SeedLotTransaction.objects.create(
+                    seed_lot=seed_lot,
+                    txn_type='dispatch',
+                    quantity_kg=0,
+                    farmer=instance.farmer,
+                    location=instance.location,
+                    notes=f"Dispatched from LabNest. Ref: {lab_ref}",
+                    recorded_by=self.request.user,
+                )
 
 class RecentActivityViewSet(viewsets.ModelViewSet):
     queryset = RecentActivity.objects.select_related('user').all()
@@ -798,7 +925,8 @@ class AIAssistantView(APIView):
             )
 
         try:
-            from langchain_core.messages import SystemMessage
+            from langchain_core.messages import SystemMessage, HumanMessage
+            from datetime import date
 
             user = request.user
             user_context = SystemMessage(content=(
@@ -809,11 +937,25 @@ class AIAssistantView(APIView):
             ))
 
             agent = build_agent(verbose=True)
-            result = agent.invoke({
-                "input": message,
-                "chat_history": [user_context],
-            })
-            reply = result.get('output') or 'I was unable to generate a response. Please try again.'
+            
+            # LangGraph expects a dictionary with a 'messages' key
+            inputs = {"messages": [user_context, HumanMessage(content=message)]}
+            
+            # For persistent checkpointing, use a daily session thread to manage context limits
+            today_str = date.today().isoformat()
+            thread_id = f"user_{user.id}_session_{today_str}"
+            config = {"configurable": {"thread_id": thread_id}}
+            
+            # invoke() returns the final state of the graph
+            result = agent.invoke(inputs, config=config)
+            
+            messages = result.get("messages", [])
+            if messages:
+                # The last message in the state is the AI's final answer
+                reply = messages[-1].content
+            else:
+                reply = 'I was unable to generate a response. Please try again.'
+                
             return Response({'reply': reply})
 
         except Exception as exc:
@@ -886,6 +1028,343 @@ class ManpowerExpenseViewSet(viewsets.ModelViewSet):
             'count': queryset.count(),
             'total_monthly_payroll': round(total_monthly, 2),
             'total_daily_cost': round(total_daily, 4),
+        })
+
+
+# ============================================
+# FIELDLINK VIEWSETS
+# ============================================
+
+class FieldLocationViewSet(viewsets.ModelViewSet):
+    """CRUD for field locations (Ajbapur, Rupapur, etc.)"""
+    queryset = FieldLocation.objects.prefetch_related('plots').all()
+    serializer_class = FieldLocationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class PlotViewSet(viewsets.ModelViewSet):
+    """CRUD for individual plots within a location."""
+    serializer_class = PlotSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = Plot.objects.select_related('location').all()
+        location_id = self.request.query_params.get('location')
+        if location_id:
+            qs = qs.filter(location_id=location_id)
+        return qs
+
+
+class FieldManagerViewSet(viewsets.ModelViewSet):
+    """CRUD for field managers. Supports ?active=true filter."""
+    serializer_class = FieldManagerSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = FieldManager.objects.prefetch_related('farmers').all()
+        active_only = self.request.query_params.get('active')
+        if active_only == 'true':
+            qs = qs.filter(is_active=True)
+        return qs
+
+
+class FarmerViewSet(viewsets.ModelViewSet):
+    """CRUD for contract farmers + computed yield metrics."""
+    serializer_class = FarmerSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = Farmer.objects.select_related('primary_location', 'field_manager').prefetch_related('seedlottransaction_set').all()
+        active_only = self.request.query_params.get('active')
+        if active_only == 'true':
+            qs = qs.filter(is_active=True)
+        manager_id = self.request.query_params.get('manager')
+        if manager_id:
+            qs = qs.filter(field_manager_id=manager_id)
+        return qs
+
+
+class SeedLotViewSet(viewsets.ModelViewSet):
+    """CRUD for seed lots + custom actions for dispatch and harvest."""
+    serializer_class = SeedLotSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = SeedLot.objects.select_related(
+            'parent_lot', 'variety', 'location', 'plot', 'farmer', 'created_by'
+        ).prefetch_related('child_lots', 'transactions').all()
+
+        stage = self.request.query_params.get('stage')
+        status = self.request.query_params.get('status')
+        year = self.request.query_params.get('year')
+        farmer_id = self.request.query_params.get('farmer')
+        location_id = self.request.query_params.get('location')
+        lot_id = self.request.query_params.get('lot_id')
+
+        if stage: qs = qs.filter(stage=stage)
+        if status: qs = qs.filter(status=status)
+        if year: qs = qs.filter(season_year=year)
+        if farmer_id: qs = qs.filter(farmer_id=farmer_id)
+        if location_id: qs = qs.filter(location_id=location_id)
+        if lot_id: qs = qs.filter(lot_id__icontains=lot_id)
+
+        return qs
+
+    @action(detail=True, methods=['post'], url_path='dispatch')
+    def dispatch_to_farmer(self, request, pk=None):
+        """POST /api/field/seed-lots/{id}/dispatch/ — assign lot to a farmer and log it."""
+        lot = self.get_object()
+        farmer_id = request.data.get('farmer_id')
+        quantity_kg = request.data.get('quantity_kg')
+        notes = request.data.get('notes', '')
+        new_lot_id = request.data.get('new_lot_id')
+        location_id = request.data.get('location')
+        custom_plot_id = request.data.get('custom_plot_id')
+        custom_coordinates = request.data.get('custom_coordinates')
+
+        if lot.stage == 'commercial':
+            # Commercial dispatch is a sale. No farmer assignment required.
+            dispatch_qty = float(quantity_kg) if quantity_kg else float(lot.quantity_kg)
+            with transaction.atomic():
+                if dispatch_qty >= float(lot.quantity_kg):
+                    lot.status = 'sold'
+                    lot.save(update_fields=['status'])
+                else:
+                    lot.quantity_kg = float(lot.quantity_kg) - dispatch_qty
+                    lot.save(update_fields=['quantity_kg'])
+                
+                SeedLotTransaction.objects.create(
+                    seed_lot=lot,
+                    txn_type='dispatch',
+                    quantity_kg=dispatch_qty,
+                    notes=notes or "Commercial sale",
+                    recorded_by=request.user,
+                )
+            return Response(SeedLotSerializer(lot, context={'request': request}).data)
+
+        # For non-commercial stages, we are dispatching to a farmer to grow.
+        if not farmer_id:
+            return Response({'error': 'farmer_id is required for non-commercial dispatch'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            farmer = Farmer.objects.get(id=farmer_id)
+        except Farmer.DoesNotExist:
+            return Response({'error': 'Farmer not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        dispatch_qty = float(quantity_kg) if quantity_kg else float(lot.quantity_kg)
+
+        with transaction.atomic():
+            if dispatch_qty < float(lot.quantity_kg):
+                # Partial dispatch: split lot
+                if not new_lot_id:
+                    return Response({'error': 'new_lot_id is required for partial dispatch'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                lot.quantity_kg = float(lot.quantity_kg) - dispatch_qty
+                lot.save(update_fields=['quantity_kg'])
+
+                new_lot = SeedLot.objects.create(
+                    lot_id=new_lot_id,
+                    stage=lot.stage,
+                    parent_lot=lot.parent_lot, # sibling
+                    variety=lot.variety,
+                    quantity_kg=dispatch_qty,
+                    season_year=lot.season_year,
+                    status='dispatched',
+                    farmer=farmer,
+                    location_id=location_id,
+                    custom_plot_id=custom_plot_id,
+                    custom_coordinates=custom_coordinates,
+                    notes=notes,
+                    created_by=request.user,
+                )
+                
+                SeedLotTransaction.objects.create(
+                    seed_lot=lot,
+                    txn_type='dispatch',
+                    quantity_kg=dispatch_qty,
+                    farmer=farmer,
+                    notes=f"Partial dispatch to {new_lot_id}. {notes}",
+                    recorded_by=request.user,
+                )
+                return Response(SeedLotSerializer(new_lot, context={'request': request}).data)
+            else:
+                # Full dispatch
+                lot.farmer = farmer
+                lot.status = 'dispatched'
+                if location_id: lot.location_id = location_id
+                if custom_plot_id: lot.custom_plot_id = custom_plot_id
+                if custom_coordinates: lot.custom_coordinates = custom_coordinates
+                lot.save(update_fields=['farmer', 'status', 'location_id', 'custom_plot_id', 'custom_coordinates'])
+
+                SeedLotTransaction.objects.create(
+                    seed_lot=lot,
+                    txn_type='dispatch',
+                    quantity_kg=dispatch_qty,
+                    farmer=farmer,
+                    notes=notes,
+                    recorded_by=request.user,
+                )
+                return Response(SeedLotSerializer(lot, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'], url_path='harvest')
+    def log_harvest(self, request, pk=None):
+        """POST /api/field/seed-lots/{id}/harvest/ — log harvest return from farmer, creates child lot."""
+        parent_lot = self.get_object()
+        quantity_kg = request.data.get('quantity_kg')
+        new_lot_id = request.data.get('new_lot_id')
+        notes = request.data.get('notes', '')
+        location_id = request.data.get('location')
+        custom_plot_id = request.data.get('custom_plot_id')
+        custom_coordinates = request.data.get('custom_coordinates')
+
+        if not quantity_kg or not new_lot_id or not location_id:
+            return Response(
+                {'error': 'quantity_kg, new_lot_id and location are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        NEXT_STAGE = {
+            'breeder': 'foundation',
+            'foundation': 'certified',
+            'certified': 'commercial',
+        }
+        next_stage = NEXT_STAGE.get(parent_lot.stage)
+        if not next_stage:
+            return Response({'error': 'Commercial lots cannot be harvested further.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            parent_lot.status = 'harvested'
+            parent_lot.save(update_fields=['status'])
+
+            child_lot = SeedLot.objects.create(
+                lot_id=new_lot_id,
+                stage=next_stage,
+                parent_lot=parent_lot,
+                variety=parent_lot.variety,
+                quantity_kg=quantity_kg,
+                season_year=parent_lot.season_year + 1,
+                status='in_field',
+                farmer=parent_lot.farmer,
+                location_id=location_id,
+                custom_plot_id=custom_plot_id,
+                custom_coordinates=custom_coordinates,
+                notes=notes,
+                created_by=request.user,
+            )
+
+            SeedLotTransaction.objects.create(
+                seed_lot=parent_lot,
+                txn_type='harvest',
+                quantity_kg=quantity_kg,
+                farmer=parent_lot.farmer,
+                notes=f"Harvest returned. New lot: {new_lot_id}",
+                recorded_by=request.user,
+            )
+
+        return Response(SeedLotSerializer(child_lot, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], url_path='genealogy')
+    def genealogy(self, request):
+        """GET /api/field/seed-lots/genealogy/?lot_ids=CM-001,CT-002 — returns ancestor tree for one or more lots."""
+        lot_ids_param = request.query_params.get('lot_ids', '')
+        if not lot_ids_param:
+            return Response({'error': 'lot_ids query parameter required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        input_ids = [lid.strip() for lid in lot_ids_param.split(',') if lid.strip()]
+        collected = {}  # lot_id -> serialized lot
+        edges = []
+
+        def trace(lot):
+            if lot.lot_id in collected:
+                return
+            collected[lot.lot_id] = SeedLotSerializer(lot, context={'request': request}).data
+            if lot.parent_lot:
+                edge_id = f"{lot.parent_lot.lot_id}-->{lot.lot_id}"
+                if edge_id not in [e['id'] for e in edges]:
+                    edges.append({'id': edge_id, 'source': lot.parent_lot.lot_id, 'target': lot.lot_id})
+                trace(lot.parent_lot)
+            elif lot.lab_batch_reference:
+                # Inject a single synthetic LabNest origin node for all lab-originated lots
+                lab_id = 'TISSUE_CULTURE_ROOT'
+                if lab_id not in collected:
+                    collected[lab_id] = {
+                        'id': 'LabNest',
+                        'lot_id': lab_id,
+                        'stage': 'tissue_culture',
+                        'quantity_kg': '0.000',
+                        'season_year': lot.season_year,
+                        'holder_name': 'LabNest Facility',
+                        'status': 'transplanted',
+                        'is_labnest': True,
+                    }
+                edge_id = f"{lab_id}-->{lot.lot_id}"
+                if edge_id not in [e['id'] for e in edges]:
+                    edges.append({'id': edge_id, 'source': lab_id, 'target': lot.lot_id})
+
+        for lid in input_ids:
+            try:
+                lot = SeedLot.objects.select_related('parent_lot', 'variety', 'farmer', 'location').get(lot_id=lid)
+                trace(lot)
+            except SeedLot.DoesNotExist:
+                pass  # skip unknown IDs
+
+        return Response({'nodes': list(collected.values()), 'edges': edges})
+
+
+class SeedLotTransactionViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only ledger of all field events (dispatch, harvest, etc.)"""
+    serializer_class = SeedLotTransactionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = SeedLotTransaction.objects.select_related(
+            'seed_lot', 'farmer', 'location', 'recorded_by'
+        ).all()
+        lot_id = self.request.query_params.get('lot_id')
+        farmer_id = self.request.query_params.get('farmer')
+        if lot_id:
+            qs = qs.filter(seed_lot__lot_id=lot_id)
+        if farmer_id:
+            qs = qs.filter(farmer_id=farmer_id)
+        return qs
+
+
+class FieldDashboardView(APIView):
+    """GET /api/field/dashboard/ — aggregated KPIs for the FieldLink dashboard."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        year = request.query_params.get('year')
+        qs = SeedLot.objects.all()
+        if year:
+            qs = qs.filter(season_year=year)
+
+        stage_summary = {}
+        for stage, label in SeedLot.STAGE_CHOICES:
+            lots = qs.filter(stage=stage)
+            stage_summary[stage] = {
+                'label': label,
+                'total_kg': float(lots.aggregate(t=Sum('quantity_kg'))['t'] or 0),
+                'count': lots.count(),
+            }
+
+        farmers = Farmer.objects.filter(is_active=True)
+        active_farmer_count = farmers.count()
+
+        total_dispatched = float(
+            SeedLotTransaction.objects.filter(txn_type='dispatch').aggregate(t=Sum('quantity_kg'))['t'] or 0
+        )
+        total_harvested = float(
+            SeedLotTransaction.objects.filter(txn_type='harvest').aggregate(t=Sum('quantity_kg'))['t'] or 0
+        )
+        avg_ratio = round(total_harvested / total_dispatched, 2) if total_dispatched else 0
+
+        return Response({
+            'stage_summary': stage_summary,
+            'active_farmers': active_farmer_count,
+            'total_dispatched_kg': total_dispatched,
+            'total_harvested_kg': total_harvested,
+            'avg_yield_ratio': avg_ratio,
         })
 
 # Trigger auto-reloader

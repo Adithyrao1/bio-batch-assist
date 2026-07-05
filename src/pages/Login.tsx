@@ -1,5 +1,7 @@
 import { useNavigate, Link } from "react-router-dom";
-import { Sprout, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { BrandLogo } from "@/components/ui/BrandLogo";
+
 import { motion } from "framer-motion";
 import { ThemeToggleFloat } from "@/components/ThemeToggle";
 import { useTheme } from "next-themes";
@@ -87,10 +89,9 @@ export default function Login() {
                 initial={{ scale: 0.8 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
-                className="h-14 w-14 rounded-2xl flex items-center justify-center mb-4"
-                style={{ background: "linear-gradient(135deg, #7c3aed, #4f46e5)" }}
+                className="mb-4"
               >
-                <Sprout className="h-7 w-7 text-white" />
+                <BrandLogo size="h-14 w-14" rounded="rounded-2xl" />
               </motion.div>
             </Link>
             <h1 className="text-2xl font-bold tracking-tight transition-colors" style={{ color: t.title }}>Welcome back</h1>

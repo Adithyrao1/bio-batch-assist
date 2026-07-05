@@ -11,6 +11,7 @@ export interface User {
   username: string;
   email: string;
   role: UserRole;
+  is_onboarded: boolean;
   profile_picture?: string | null;
 }
 
@@ -32,6 +33,7 @@ function transformUser(apiUser: LoginResponse['user']): User {
     username: apiUser.username,
     email: apiUser.email,
     role: apiUser.role,
+    is_onboarded: apiUser.is_onboarded ?? true,
     profile_picture: apiUser.profile_picture,
   };
 }

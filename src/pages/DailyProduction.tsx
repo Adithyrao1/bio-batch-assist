@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +22,7 @@ import { Sprout, Plus, Loader2, Bug, AlertTriangle, ChevronDown, ChevronUp, Down
 import { fetchWithAuth } from "@/lib/api";
 import { FilterBar, type FilterConfig } from "@/components/FilterBar";
 import { Pagination } from "@/components/Pagination";
+import { getFarmers, getLocations, Farmer, FieldLocation } from "@/lib/fieldApi";
 
 const STAGES = [
   { id: "initiation",     label: "Initiation" },
@@ -256,7 +257,7 @@ export default function DailyProduction() {
 interface FieldDef {
   name: string;
   label: string;
-  type: "number" | "select";
+  type: "number" | "select" | "text";
   placeholder?: string;
   selectOptions?: { value: string; label: string }[];
   required?: boolean;
@@ -359,6 +360,15 @@ function StagePanel({
                 <SelectTrigger className="h-8 rounded-sm text-xs"><SelectValue placeholder={f.placeholder || "Select"} /></SelectTrigger>
                 <SelectContent>{f.selectOptions?.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
               </Select>
+            ) : f.type === "text" ? (
+              <Input
+                type="text"
+                value={prodFields[f.name] || ""}
+                onChange={e => setProdFields(p => ({ ...p, [f.name]: e.target.value }))}
+                placeholder={f.placeholder || ""}
+                required={f.required}
+                className="h-8 rounded-sm text-xs"
+              />
             ) : (
               <Input
                 type="number"
@@ -686,6 +696,13 @@ function HardeningTab({ varieties }: { varieties: any[] }) {
 function TransplantationTab({ varieties }: { varieties: any[] }) {
   const { data, isLoading } = useTransplantationLogs({ page_size: 1000 });
   const createMutation = useCreateTransplantationLog();
+  const [farmers, setFarmers] = useState<Farmer[]>([]);
+  const [locations, setLocations] = useState<FieldLocation[]>([]);
+
+  useEffect(() => {
+    getFarmers().then(setFarmers).catch(console.error);
+    getLocations().then(setLocations).catch(console.error);
+  }, []);
 
   const allRecords = data?.results || [];
 
@@ -697,7 +714,12 @@ function TransplantationTab({ varieties }: { varieties: any[] }) {
       createMutation={createMutation}
       isMortality={true}
       productionFields={[
-        { name: "seedlings_transplanted", label: "Seedling Transplant in Field (Nos)", type: "number", required: true },
+        { name: "seedlings_transplanted", label: "Seedling Transplant (Nos)", type: "number", required: true },
+        { name: "field_lot_id", label: "Assign Field Lot ID (Opt)", type: "text", placeholder: "e.g. BR-2026-001" },
+        { name: "farmer", label: "Assign Farmer (Opt)", type: "select", selectOptions: farmers.map(f => ({ value: f.id.toString(), label: `${f.name} ${f.grower_code ? `(${f.grower_code})` : ''}` })) },
+        { name: "location", label: "Assign Location (Opt)", type: "select", selectOptions: locations.map(l => ({ value: l.id.toString(), label: l.name })) },
+        { name: "custom_plot_id", label: "Plot ID (Opt)", type: "text", placeholder: "e.g. PLOT-001" },
+        { name: "custom_coordinates", label: "Coordinates (Opt)", type: "text", placeholder: "Lat, Lng" },
       ]}
       contaminationFields={[
         { name: "seedlings_died", label: "Seedling Dried in Field (Nos)", type: "number", required: true },
@@ -708,6 +730,11 @@ function TransplantationTab({ varieties }: { varieties: any[] }) {
         date,
         seedlings_transplanted: parseInt(fields.seedlings_transplanted || "0"),
         seedlings_died: 0,
+        field_lot_id: fields.field_lot_id || "",
+        farmer: fields.farmer ? parseInt(fields.farmer) : undefined,
+        location: fields.location ? parseInt(fields.location) : undefined,
+        custom_plot_id: fields.custom_plot_id || "",
+        custom_coordinates: fields.custom_coordinates || "",
       })}
       mapContaminationPayload={(fields, varietyId, date, userId) => ({
         variety: varietyId,
@@ -715,13 +742,15 @@ function TransplantationTab({ varieties }: { varieties: any[] }) {
         date,
         seedlings_transplanted: 0,
         seedlings_died: parseInt(fields.seedlings_died || "0"),
+        field_lot_id: "",
       })}
-      tableHeaders={["Date", "Variety", "Technician", "Seedlings Transplanted", "Seedlings Dried", "Mortality %"]}
+      tableHeaders={["Date", "Variety", "Technician", "Field Lot ID", "Transplanted", "Dried", "Mortality %"]}
       renderRow={(r) => (
         <TableRow key={r.id} className="hover:bg-muted/40 transition-colors">
           <TableCell className="py-2 text-xs">{r.date}</TableCell>
           <TableCell className="py-2 text-xs font-semibold">{r.variety_code}</TableCell>
           <TableCell className="py-2 text-xs">{r.technician_name}</TableCell>
+          <TableCell className="py-2 text-xs font-mono font-medium text-indigo-600">{r.field_lot_id || <span className="text-muted-foreground italic text-[10px]">Unassigned</span>}</TableCell>
           <TableCell className="py-2 text-xs">{r.seedlings_transplanted > 0 ? r.seedlings_transplanted : <span className="text-muted-foreground">-</span>}</TableCell>
           <TableCell className="py-2 text-xs">{r.seedlings_died > 0 ? <span className="text-red-500 font-bold">{r.seedlings_died}</span> : <span className="text-muted-foreground">-</span>}</TableCell>
           <TableCell className="py-2 text-xs font-medium text-amber-600">{r.seedlings_transplanted > 0 ? ((r.seedlings_died / r.seedlings_transplanted) * 100).toFixed(2) + '%' : '-'}</TableCell>

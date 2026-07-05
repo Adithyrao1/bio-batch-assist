@@ -13,7 +13,7 @@ const ROLE_BADGE: Record<string, string> = {
   viewer: "bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700",
 };
 
-export function TopBar() {
+export function TopBar({ moduleName = "DCM LabNest" }: { moduleName?: string }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -41,7 +41,7 @@ export function TopBar() {
         {/* Breadcrumb placeholder / page indicator */}
         <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground ml-1">
 
-          <span className="font-medium text-foreground">DCM LabNest</span>
+          <span className="font-medium text-foreground">{moduleName}</span>
         </div>
       </div>
 
