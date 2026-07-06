@@ -161,6 +161,9 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://localhost:8080',
+    'http://localhost',        # Docker frontend (Nginx on port 80)
+    'http://127.0.0.1',
+    *[o.strip() for o in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()],
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
@@ -172,6 +175,9 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://localhost:8080',
+    'http://localhost',        # Docker frontend
+    'http://127.0.0.1',
+    *[o.strip() for o in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()],
 ]
 
 # ── Email (Gmail SMTP) ────────────────────────────────────────────────────────
