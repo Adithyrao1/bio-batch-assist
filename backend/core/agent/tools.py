@@ -561,12 +561,13 @@ def send_weekly_lab_report(recipient_email: str) -> str:
 
     try:
         result = send_weekly_lab_digest.apply(args=[recipient_email])
-        if result.status == 'SUCCESS':
-            return (
-                f"✅ Weekly lab performance report has been sent to **{recipient_email}**! "
-                "It includes production, contamination, inventory, and team metrics for the past 7 days."
-            )
-        return f"⚠️ Report task completed but returned an unexpected status: {result.status}"
+        return_value = result.result  # the string the task returned
+        if isinstance(return_value, str) and return_value.startswith("Failed:"):
+            return f"❌ Failed to send weekly report: {return_value}"
+        return (
+            f"✅ Weekly lab performance report has been sent to **{recipient_email}**! "
+            "It includes production, contamination, inventory, and team metrics for the past 7 days."
+        )
     except Exception as e:
         return f"❌ Failed to send weekly report: {str(e)}"
 
@@ -586,16 +587,19 @@ def send_chemical_expiry_alert(recipient_email: str) -> str:
     """
     import os
     os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", r"D:\playwright_browsers")
-    from core.tasks import send_chemical_expiry_digest
+    from core.tasks import send_chemical_inventory_digest
 
     try:
-        result = send_chemical_expiry_digest.apply(args=[recipient_email])
-        if result.status == 'SUCCESS':
-            return (
-                f"✅ Chemical expiry alert has been sent to **{recipient_email}**! "
-                "It includes a full list of chemicals expiring within the next 30 days."
-            )
-        return f"⚠️ Task completed but returned an unexpected status: {result.status}"
+        result = send_chemical_inventory_digest.apply(args=[recipient_email])
+        return_value = result.result  # the string the task returned
+        if isinstance(return_value, str) and return_value.startswith("Failed:"):
+            return f"❌ Failed to send chemical expiry alert: {return_value}"
+        if isinstance(return_value, str) and return_value == "No inventory alerts.":
+            return "ℹ️ No inventory alerts to send — all chemicals are well-stocked and not expiring soon."
+        return (
+            f"✅ Chemical expiry alert has been sent to **{recipient_email}**! "
+            "It includes a full list of chemicals expiring within the next 30 days."
+        )
     except Exception as e:
         return f"❌ Failed to send chemical expiry alert: {str(e)}"
 
@@ -638,12 +642,34 @@ def search_lab_protocols(query: str) -> str:
 @tool
 def render_chart_in_ui(chart_type: str, title: str, data_points_json: str) -> str:
     """
-    Use this tool ONLY when the user asks for a chart, graph, or visual representation.
-    First use database tools to get the data. Then pass the data here as a JSON string.
-    chart_type must be exactly one of: 'bar', 'pie', 'line'.
-    data_points_json MUST be a valid JSON array string like: [{"name": "Category A", "value": 15}, {"name": "Category B", "value": 20}]
-    IMPORTANT: You must copy the exact returned string into your final answer.
+    Renders a chart in the user interface. Call this AFTER you have fetched the data using a database tool.
+    
+    REQUIRED two-step workflow:
+      Step 1: Call the appropriate data tool (e.g., get_contamination_by_variety, get_production_summary,
+              get_manpower_payroll_summary, get_expenses_summary, get_technician_salary, etc.)
+      Step 2: Parse the text result from Step 1 and call this tool with the data as JSON.
+    
+    Args:
+        chart_type: MUST be exactly one of: 'bar', 'pie', 'line'
+        title: A short descriptive title for the chart (e.g., 'Contamination by Variety')
+        data_points_json: A valid JSON array string. Each element MUST have 'name' and 'value' keys.
+            Example: '[{"name": "SC-001", "value": 45}, {"name": "SC-002", "value": 12}]'
+    
+    CRITICAL: Copy the ENTIRE returned string (including ===CHART_BEGIN=== and ===CHART_END===) 
+    verbatim into your final answer. Do not summarise or paraphrase it.
     """
+    import json
+    # Validate JSON before returning
+    try:
+        parsed = json.loads(data_points_json)
+        if not isinstance(parsed, list) or not parsed:
+            return "❌ Chart error: data_points_json must be a non-empty JSON array."
+        if not all('name' in p and 'value' in p for p in parsed):
+            return "❌ Chart error: every element must have 'name' and 'value' keys."
+        # Re-serialise to ensure clean JSON
+        data_points_json = json.dumps(parsed)
+    except (json.JSONDecodeError, TypeError) as e:
+        return f"❌ Chart error: invalid JSON — {e}"
     return f"\n===CHART_BEGIN===\n{chart_type}|{title}|{data_points_json}\n===CHART_END===\n"
 
 
@@ -660,10 +686,13 @@ def send_progress_report(start_date: str, end_date: str, recipient_email: str) -
     """
     from core.tasks import email_progress_report_task
     try:
-        email_progress_report_task.apply_async(args=[start_date, end_date, recipient_email])
-        return f"✅ The Progress Report ({start_date} to {end_date}) is being generated and will be emailed to **{recipient_email}** shortly."
+        result = email_progress_report_task.apply(args=[start_date, end_date, recipient_email])
+        return_value = result.result
+        if isinstance(return_value, str) and return_value.startswith("Failed"):
+            return f"❌ {return_value}"
+        return f"✅ The Progress Report ({start_date} to {end_date}) has been emailed to **{recipient_email}**."
     except Exception as e:
-        return f"❌ Failed to enqueue progress report task: {str(e)}"
+        return f"❌ Failed to send progress report: {str(e)}"
 
 @tool
 def send_expenses_report(start_date: str, end_date: str, recipient_email: str) -> str:
@@ -678,10 +707,13 @@ def send_expenses_report(start_date: str, end_date: str, recipient_email: str) -
     """
     from core.tasks import email_expenses_report_task
     try:
-        email_expenses_report_task.apply_async(args=[start_date, end_date, recipient_email])
-        return f"✅ The Expenses Report ({start_date} to {end_date}) is being generated and will be emailed to **{recipient_email}** shortly."
+        result = email_expenses_report_task.apply(args=[start_date, end_date, recipient_email])
+        return_value = result.result
+        if isinstance(return_value, str) and return_value.startswith("Failed"):
+            return f"❌ {return_value}"
+        return f"✅ The Expenses Report ({start_date} to {end_date}) has been emailed to **{recipient_email}**."
     except Exception as e:
-        return f"❌ Failed to enqueue expenses report task: {str(e)}"
+        return f"❌ Failed to send expenses report: {str(e)}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

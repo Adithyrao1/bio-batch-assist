@@ -27,7 +27,7 @@ ALLOWED_HOSTS = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', 'loca
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
-    'django.contrib.contenttypes',
+    'django.contrib.contenttypes', 
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
@@ -157,13 +157,10 @@ SIMPLE_JWT = {
 }
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
+_default_origins = 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080'
+
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:8080',
-    'http://localhost',        # Docker frontend (Nginx on port 80)
-    'http://127.0.0.1',
-    *[o.strip() for o in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()],
+    o.strip() for o in os.environ.get('DJANGO_CORS_ALLOWED_ORIGINS', _default_origins).split(',') if o.strip()
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
@@ -172,12 +169,7 @@ CORS_ALLOW_HEADERS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:8080',
-    'http://localhost',        # Docker frontend
-    'http://127.0.0.1',
-    *[o.strip() for o in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()],
+    o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', _default_origins).split(',') if o.strip()
 ]
 
 # ── Email (Gmail SMTP) ────────────────────────────────────────────────────────
@@ -199,6 +191,7 @@ CELERY_TASK_SERIALIZER   = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE          = 'UTC'
 CELERY_TASK_TRACK_STARTED = True
+CELERY_RESULT_EXPIRES    = 3600   # expire task results in Redis after 1 hour
 
 CACHES = {
     'default': {

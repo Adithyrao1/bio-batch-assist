@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status, permissions
+﻿from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -118,8 +118,9 @@ class EntraLoginView(APIView):
             user.set_unusable_password()
             user.save()
         else:
-            # Sync the role if it was updated in Azure Entra ID
-            if user.role != assigned_role:
+            # Only sync role from Entra when it actually sent app roles - otherwise
+            # this would silently overwrite roles assigned locally via admin approval.
+            if entra_roles and user.role != assigned_role:
                 user.role = assigned_role
                 user.save(update_fields=['role'])
 
@@ -902,13 +903,15 @@ class AIAssistantView(APIView):
     Body:    { "message": "natural language question" }
     Returns: { "reply": "agent's answer" }
 
-    Uses a LangChain ReAct agent with 17 read-only tools to answer
-    natural language questions about the live DCM LabNest database.
+    Uses a LangChain ReAct agent with 43 read-only tools to answer
+    natural language questions about the live DCM LabNest and FieldLink Module.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        from core.agent.agent import build_agent
+        from core.tasks import run_llm_agent_task
+        from celery.exceptions import TimeoutError as CeleryTimeoutError
+        from datetime import date
 
         message = (request.data.get('message') or '').strip()
         if not message:
@@ -925,39 +928,34 @@ class AIAssistantView(APIView):
             )
 
         try:
-            from langchain_core.messages import SystemMessage, HumanMessage
-            from datetime import date
-
             user = request.user
-            user_context = SystemMessage(content=(
-                f"The currently logged-in user is: {user.get_full_name() or user.username} "
-                f"(email: {user.email}). "
-                f"When sending any report or alert email, ALWAYS use '{user.email}' "
-                f"as the recipient_email argument. Do not ask the user for their email."
-            ))
-
-            agent = build_agent(verbose=True)
-            
-            # LangGraph expects a dictionary with a 'messages' key
-            inputs = {"messages": [user_context, HumanMessage(content=message)]}
-            
-            # For persistent checkpointing, use a daily session thread to manage context limits
             today_str = date.today().isoformat()
             thread_id = f"user_{user.id}_session_{today_str}"
-            config = {"configurable": {"thread_id": thread_id}}
-            
-            # invoke() returns the final state of the graph
-            result = agent.invoke(inputs, config=config)
-            
-            messages = result.get("messages", [])
-            if messages:
-                # The last message in the state is the AI's final answer
-                reply = messages[-1].content
-            else:
-                reply = 'I was unable to generate a response. Please try again.'
-                
+
+            # Dispatch to Celery worker via Redis message queue.
+            # The worker retries with exponential back-off on failure.
+            async_result = run_llm_agent_task.apply_async(
+                kwargs={
+                    "user_id": user.id,
+                    "user_full_name": user.get_full_name() or user.username,
+                    "user_email": user.email,
+                    "user_role": getattr(user, 'role', 'viewer'),
+                    "message": message,
+                    "thread_id": thread_id,
+                }
+            )
+
+            # Block this request thread until the worker finishes (max 120 s).
+            # This preserves the existing { "reply": "..." } response contract
+            # without requiring any frontend changes.
+            reply = async_result.get(timeout=120, propagate=True)
             return Response({'reply': reply})
 
+        except CeleryTimeoutError:
+            return Response(
+                {'error': 'The request timed out. The agent is still processing — please try again shortly.'},
+                status=status.HTTP_504_GATEWAY_TIMEOUT,
+            )
         except Exception as exc:
             return Response(
                 {'error': f'Agent error: {str(exc)}'},
@@ -1359,12 +1357,49 @@ class FieldDashboardView(APIView):
         )
         avg_ratio = round(total_harvested / total_dispatched, 2) if total_dispatched else 0
 
+        # ── Per-location plot tracking summary ──────────────────────────────
+        from core.models import FieldLocation, Plot
+        TRACKED_LOCATIONS = ['Ajbapur', 'Hariawan', 'Loni', 'Rupapur']
+        locations = FieldLocation.objects.filter(name__in=TRACKED_LOCATIONS)
+        location_summary = []
+        for loc in locations:
+            plots = Plot.objects.filter(location=loc)
+            total_plots = plots.count()
+            plots_with_boundary = plots.exclude(boundaries__isnull=True).count()
+            total_area = float(
+                plots.aggregate(a=Sum('area_acres'))['a'] or 0
+            )
+            # Active lots: in_field status at this location
+            active_lots = SeedLot.objects.filter(
+                location=loc,
+                status__in=['in_field', 'dispatched']
+            )
+            lots_by_stage = {}
+            for stage, label in SeedLot.STAGE_CHOICES:
+                count = active_lots.filter(stage=stage).count()
+                if count:
+                    lots_by_stage[stage] = count
+            location_summary.append({
+                'id': loc.id,
+                'name': loc.name,
+                'location_type': loc.location_type,
+                'total_plots': total_plots,
+                'plots_with_boundary': plots_with_boundary,
+                'total_area_acres': round(total_area, 2),
+                'active_lots_count': active_lots.count(),
+                'lots_by_stage': lots_by_stage,
+            })
+        # Preserve display order
+        order = {name: i for i, name in enumerate(TRACKED_LOCATIONS)}
+        location_summary.sort(key=lambda x: order.get(x['name'], 99))
+
         return Response({
             'stage_summary': stage_summary,
             'active_farmers': active_farmer_count,
             'total_dispatched_kg': total_dispatched,
             'total_harvested_kg': total_harvested,
             'avg_yield_ratio': avg_ratio,
+            'location_summary': location_summary,
         })
 
 # Trigger auto-reloader

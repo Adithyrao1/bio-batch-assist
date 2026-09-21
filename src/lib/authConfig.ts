@@ -8,8 +8,8 @@ export const msalConfig: Configuration = {
   auth: {
     clientId: import.meta.env.VITE_AZURE_CLIENT_ID as string,
     authority: `https://login.microsoftonline.com/${import.meta.env.VITE_AZURE_TENANT_ID as string}`,
-    redirectUri: "http://localhost:8080/",
-    postLogoutRedirectUri: "http://localhost:8080/",
+    redirectUri: window.location.origin + "/",
+    postLogoutRedirectUri: window.location.origin + "/",
   },
   cache: {
     // Use localStorage to ensure the popup window and main window share the exact same cache state

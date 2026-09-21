@@ -39,13 +39,17 @@ class User(AbstractUser):
 
 
 class Variety(models.Model):
-    code = models.CharField(max_length=20, unique=True)  # e.g., SC-001
+    code = models.CharField(max_length=20, unique=True)  # e.g., SC-001 (LabNest code)
     name = models.CharField(max_length=100)
     description = models.CharField(max_length=255, blank=True)
-    
+    field_code = models.CharField(
+        max_length=50, blank=True, default='',
+        help_text="FieldLink variety code / alias used in the seed multiplication program"
+    )
+
     def __str__(self):
         return f"{self.code} - {self.name}"
-    
+
     class Meta:
         verbose_name_plural = "Varieties"
         ordering = ['code']

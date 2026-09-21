@@ -47,6 +47,7 @@ export interface Variety {
   code: string;
   name: string;
   description?: string;
+  field_code?: string;
 }
 
 export interface FindingType {
@@ -97,7 +98,7 @@ export interface RootingLogCreate { variety: number; technician: number; date: s
 export interface HardeningLog { id: number; variety: number; variety_code?: string; technician: number; technician_name?: string; date: string; seedlings_transplanted: number; seedlings_died: number; }
 export interface HardeningLogCreate { variety: number; technician: number; date: string; seedlings_transplanted: number; seedlings_died: number; }
 
-export interface TransplantationLog { id: number; variety: number; variety_code?: string; technician: number; technician_name?: string; date: string; seedlings_transplanted: number; seedlings_died: number; field_lot_id?: string; farmer?: number; location?: number; }
+export interface TransplantationLog { id: number; variety: number; variety_code?: string; variety_field_code?: string; technician: number; technician_name?: string; date: string; seedlings_transplanted: number; seedlings_died: number; field_lot_id?: string; farmer?: number; location?: number; }
 export interface TransplantationLogCreate { variety: number; technician: number; date: string; seedlings_transplanted: number; seedlings_died: number; field_lot_id?: string; farmer?: number; location?: number; }
 
 

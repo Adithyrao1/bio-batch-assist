@@ -57,6 +57,18 @@ class VarietySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class VarietyFieldCodeSerializer(serializers.ModelSerializer):
+    """Admin-only serializer for updating the field_code mapping."""
+    class Meta:
+        model = Variety
+        fields = ['id', 'code', 'name', 'field_code']
+class VarietyFieldCodeSerializer(serializers.ModelSerializer):
+    """Admin-only serializer for updating the field_code mapping."""
+    class Meta:
+        model = Variety
+        fields = ['id', 'code', 'name', 'field_code']
+
+
 
 # ============================================
 # OPERATIONAL SERIALIZERS
@@ -100,6 +112,7 @@ class HardeningLogSerializer(serializers.ModelSerializer):
 
 class TransplantationLogSerializer(serializers.ModelSerializer):
     variety_code = serializers.CharField(source='variety.code', read_only=True)
+    variety_field_code = serializers.CharField(source='variety.field_code', read_only=True)
     technician_name = serializers.CharField(source='technician.get_full_name', read_only=True)
     class Meta:
         model = TransplantationLog
