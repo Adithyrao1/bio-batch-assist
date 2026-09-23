@@ -36,6 +36,26 @@ __pycache__/
 .env.*
 backend/.env
 backend/.env.*
+!.env.example
+!backend/.env.example
 
 # Kafka Data
 kafka_data/
+
+# Generated databases / caches (recreated by migrate / the dbt & Celery pipelines)
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.duckdb
+backend/celerybeat-schedule*
+backend/raw_data/
+backend/media/
+backend/staticfiles/
+backend/core/agent/faiss_index/
+backend/lab_analytics/target/
+backend/lab_analytics/logs/
+
+# Local AI-assistant tooling (not part of the app)
+.agent/
+.mcp.json
+.opencode.json

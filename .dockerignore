@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-ssr
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+backend
+android
+.venv
+.vscode
+*.md

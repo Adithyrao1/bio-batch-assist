@@ -555,8 +555,6 @@ def send_weekly_lab_report(recipient_email: str) -> str:
         recipient_email: The email address to send the report to.
                          Always use the logged-in user's email from the system context.
     """
-    import os
-    os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", r"D:\playwright_browsers")
     from core.tasks import send_weekly_lab_digest
 
     try:
@@ -585,8 +583,6 @@ def send_chemical_expiry_alert(recipient_email: str) -> str:
         recipient_email: The email address to send the alert to.
                          Always use the logged-in user's email from the system context.
     """
-    import os
-    os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", r"D:\playwright_browsers")
     from core.tasks import send_chemical_inventory_digest
 
     try:

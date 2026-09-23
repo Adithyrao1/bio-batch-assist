@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">LabNest</string>
+    <string name="title_activity_main">LabNest</string>
+    <string name="package_name">com.dcm.labnest</string>
+    <string name="custom_url_scheme">com.dcm.labnest</string>
+</resources>

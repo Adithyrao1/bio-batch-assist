@@ -1,0 +1,15 @@
+.venv
+__pycache__
+*.pyc
+.env
+.env.*
+!.env.example
+*.sqlite*
+*.duckdb
+media
+raw_data
+staticfiles
+core/agent/faiss_index
+lab_analytics/target
+lab_analytics/logs
+celerybeat-schedule*

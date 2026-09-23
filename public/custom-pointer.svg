@@ -1,0 +1,10 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g filter="url(#filter0_d)">
+    <path d="M10 0C10 0 9 0 9 1C9 2 9 6.5 9 6.5C9 6.5 8.5 6 7.5 6C6.5 6 6 6.5 6 7.5C6 8.5 6.5 9 6.5 9L6 8.5C5.5 8 4 8 4 9C4 10 5.5 11.5 6.5 12.5C7.5 13.5 10 18 10 18H14C14 18 16 16.5 16 14C16 11.5 16 8.5 16 7C16 6 15 5 14 5C13 5 13 6 13 6V4C13 3 12.5 2 11.5 2C10.5 2 10.5 3 10.5 3V1C10.5 0 10 0 10 0Z" fill="white" stroke="black" stroke-width="1.2" stroke-linejoin="round"/>
+  </g>
+  <defs>
+    <filter id="filter0_d" x="-2" y="-2" width="28" height="28" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="1" dy="1" stdDeviation="1.5" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+</svg>
