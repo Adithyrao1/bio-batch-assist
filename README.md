@@ -1,4 +1,4 @@
-# Bio-Batch-Assist (DCM LabNest)
+# DCM Origin.ai
 
 A production-grade, AI-powered Laboratory Information Management System (LIMS) for tissue culture and biological batch management — now extended with **FieldLink**, a field-operations module for tracking farmers, plots, seed lots, and plantation genealogy.
 
